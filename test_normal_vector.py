@@ -1,7 +1,7 @@
 import pyvista as pv
 
 mesh = pv.Sphere(radius=10)
-#mesh = pv.Box((-10, 10, -10, 10, -10, 10), level=10)
+#mesh = pv.Box((-10, 10, -10, 10, 0, 40), level=10)
 #mesh = pv.ParametricRandomHills(1, 20, 20, 40)
 #mesh = pv.ParametricRandomHills(randomseed=-1)
 #mesh = pv.examples.load_nut()

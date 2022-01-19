@@ -1,17 +1,20 @@
 import numpy as np
-import serial, threading, time
+import serial, threading, time, pickle
 from scipy.spatial.transform import Rotation
 import pyvista as pv
 
 class myAHRSPlus:
-    def __init__(self, verbose=True):
+    def __init__(self, port='', baudrate=115200, timeout=1, verbose=False):
         self.dev = serial.Serial()
         self.seq = 0
-        self.xyzw = [0., 0., 0., 1.]
+        self.xyzw = [0., 0., 0., 0.]
         self.verbose = verbose
         self.lock = threading.Lock()
         self.thread = threading.Thread(target=self.recv_data)
         self.thread_exit = False
+
+        if port:
+            self.open(port, baudrate, timeout)
 
     def __del__(self):
         self.close()
@@ -51,6 +54,10 @@ class myAHRSPlus:
 
     def get_xyzw(self):
         with self.lock:
+            if np.linalg.norm(self.xyzw) < 0.1: # Less than 1 (but use smaller number for tolerance)
+                if self.verbose:
+                    print(f'[myAHRSPlus] The quaternion is not unit magnitude, {self.xyzw}.')
+                return None
             return list(self.xyzw) # Return the copy
 
     def send_cmd(self, command):
@@ -82,7 +89,8 @@ class myAHRSPlus:
                 if self.verbose:
                     print(f'[myAHRSPlus] Receive the wrong packet, {str(packet)}')
             self.dev.reset_input_buffer()
-        print("[myAHRSPlus] Terminate 'recv_data' thread.")
+        if self.verbose:
+            print("[myAHRSPlus] Terminate 'recv_data' thread.")
 
 class AHRSCube:
     def __init__(self, plotter, scale=1., x_length=0.027, y_length=0.022, z_length=0.0005, a_length=0.011, color='orange'):
@@ -116,20 +124,39 @@ class AHRSCube:
 
 
 if __name__ == '__main__':
-    ahrs_dev = myAHRSPlus()
-    if ahrs_dev.open('COM4'):
+    # Configuration
+    ahrs_port = 'COM4'
+    ahrs_save = ''
+
+    # Open the device
+    ahrs_dev = myAHRSPlus(ahrs_port)
+    if ahrs_dev.is_open():
+
+        # Prepare visualization
         plotter = pv.Plotter()
-        plotter.add_axes_at_origin('r', 'g', 'b')
         ahrs_viz = AHRSCube(plotter, scale=30)
+        plotter.add_axes_at_origin('r', 'g', 'b')
         plotter.show(title='SeoulTech AHRS Visualization', interactive_update=True)
 
+        # Get data and show them
+        ahrs_data = []
         try:
+            start = time.time()
             while True:
                 q_xyzw = ahrs_dev.get_xyzw()
-                ahrs_viz.set_orientation(q_xyzw)
-                plotter.update()
+                if q_xyzw:
+                    if ahrs_save:
+                        ahrs_data.append([time.time() - start] + q_xyzw)
+                    ahrs_viz.set_orientation(q_xyzw)
+                    plotter.update()
         except KeyboardInterrupt:
             pass
 
+        # Terminate
         plotter.close()
         ahrs_dev.close()
+
+        # Save data if necessary
+        if ahrs_save and len(ahrs_data) > 0:
+            with open(ahrs_save, 'wb') as f:
+                pickle.dump(ahrs_data, f)
