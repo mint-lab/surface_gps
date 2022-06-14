@@ -30,4 +30,5 @@ while key != 113:    # press 'q' to quit
         key = cv2.waitKey(1)
     else:
         key = cv2.waitKey(1)
+
 cv2.destroyAllWindows()
