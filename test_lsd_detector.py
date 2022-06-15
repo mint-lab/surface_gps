@@ -12,7 +12,7 @@ def find_line(img):
 
 if __name__ == '__main__':
     svo_file = 'C:/Users/Hyunkil/OneDrive/Documents/ZED/HD1080_SN2860_14-28-02.svo'
-    svo_realtime = False
+    svo_realtime = True
     
     input_type = sl.InputType()
     input_type.set_from_svo_file(svo_file)
