@@ -25,7 +25,6 @@ if __name__ == '__main__':
 
     # Prepare to grab images
     runtime = sl.RuntimeParameters()
-    runtime.sensing_mode = sl.SENSING_MODE.FILL
     rgb_img = sl.Mat()
     
     # Grab images and show them
