@@ -1,5 +1,6 @@
 import cv2 as cv
 import pyzed.sl as sl
+import numpy as np
 
 if __name__ == '__main__':
     svo_file = 'data/zed_MR327_220614.svo'
@@ -17,20 +18,25 @@ if __name__ == '__main__':
 
     # Prepare to grab images
     runtime = sl.RuntimeParameters()
-    runtime.sensing_mode = sl.SENSING_MODE.FILL
     rgb_image = sl.Mat()
-    depth_image = sl.Mat()
-    depth_float = sl.Mat()
 
     # Grab images and show them
+    ls_detector = cv.line_descriptor.LSDDetector.createLSDDetector() # Note) createLSDDetectorWithParams()
     while True:
         err = cam.grab(runtime)
         if err == sl.ERROR_CODE.SUCCESS:
+            # Grab an image
             cam.retrieve_image(rgb_image, sl.VIEW.LEFT)
-            cam.retrieve_image(depth_image, sl.VIEW.DEPTH)
-            cam.retrieve_measure(depth_float, sl.MEASURE.DEPTH)
-            cv.imshow("ZED: RGB", rgb_image.get_data())
-            cv.imshow("ZED: Depth", depth_image.get_data())
+            image = np.delete(rgb_image.get_data(), 3, axis=2) # Remove the 4th channel
+
+            # Detect line segments
+            gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+            lines = ls_detector.detect(gray, 2, 1) # Arguments) image, scale, numOctaves
+
+            # Visualize line segments
+            result = cv.line_descriptor.drawKeylines(image, lines, color=(0, 0, 255))
+            cv.imshow('ZED: Line Segment Detection', result)
+
         key = cv.waitKey(1)
         if key == 32:   # Space
             key = cv.waitKey(0)
