@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
 from filterpy.kalman import UnscentedKalmanFilter, MerweScaledSigmaPoints
 from filterpy.stats import plot_covariance
@@ -43,9 +44,10 @@ if __name__ == '__main__':
     gps_noise_std = 1
 
     # Instantiate UKF for pose (and velocity) tracking
+    #sigma = MerweScaledSigmaPoints(n=5, alpha=.1, beta=2., kappa=1., sqrt_method=(scipy.linalg.sqrtm))
+    #ukf = UnscentedKalmanFilter(dim_x=5, dim_z=2, dt=dt, fx=fx, hx=hx, points=sigma, sqrt_fn=(scipy.linalg.sqrtm), x_mean_fn=x_mean_fn, residual_z=z_residual_fn)
     sigma = MerweScaledSigmaPoints(n=5, alpha=.1, beta=2., kappa=1.)
-    ukf = UnscentedKalmanFilter(dim_x=5, dim_z=2, dt=dt, fx=fx, hx=hx, points=sigma, x_mean_fn=x_mean_fn, residual_z=z_residual_fn)
-    #ukf = UnscentedKalmanFilter(dim_x=5, dim_z=2, dt=dt, fx=fx, hx=hx, points=sigma, residual_z=z_residual_fn)
+    ukf = UnscentedKalmanFilter(dim_x=5, dim_z=2, dt=dt, fx=fx, hx=hx, points=sigma, residual_z=z_residual_fn)
     ukf.Q = np.eye(5)
     ukf.R = gps_noise_std * gps_noise_std * np.eye(2)
 
@@ -55,7 +57,7 @@ if __name__ == '__main__':
         truth = get_true_position(t)
         obs = truth + np.random.normal(size=truth.shape, scale=gps_noise_std)
 
-        # Predict and update the Kalman filter
+        # Predict and update the UKF
         ukf.predict()
         ukf.update(obs)
 
