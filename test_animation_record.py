@@ -103,7 +103,7 @@ if __name__ == "__main__":
     poses = np.empty((0,3))
     frames = []
     baro = []
-    show_animation=False
+    show_animation=True
     n_frame = 0
     
     runtime = sl.RuntimeParameters()
