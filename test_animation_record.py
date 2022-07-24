@@ -124,7 +124,7 @@ if __name__ == "__main__":
     
     timestamp = cam.get_timestamp(sl.TIME_REFERENCE.CURRENT)
     ex_times = 0
-    s_frames = 60
+    s_frames = 300
     
     while True:
         if cam.grab(runtime) == sl.ERROR_CODE.SUCCESS :
