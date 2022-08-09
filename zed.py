@@ -119,9 +119,11 @@ class ZED():
         '''Check whether the camera is openend or not'''
         return self.is_opened
     
-    def load_svo(self, path, realtime=False):
+    def load_svo(self, path, realtime=False, depth_mode='neural'):
         self.input_type.set_from_svo_file(path)
         config=sl.InitParameters(input_t = self.input_type, svo_real_time_mode=realtime)
+        if depth_mode is not None:
+            config.depth_mode = self.MAP_DEPTH_MODE[depth_mode.lower()]
         status = self.camera.open(config)
         self.is_opened = (status == sl.ERROR_CODE.SUCCESS)
         return self.is_opened
