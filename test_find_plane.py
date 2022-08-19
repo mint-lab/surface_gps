@@ -1,123 +1,105 @@
 import pickle
-import zed
 import numpy as np
 from scipy.linalg import null_space
 from time import time
+from multiprocessing import Pool
+import multiprocessing as mp
+import json
 
-def set_data(info):
-    param = info.calibration_parameters.left_cam
-    fx = param.fx
-    fy = param.fy
-    cx = param.cx
-    cy = param.cy
+
+def set_param(path):
+    with open(path, "r") as json_file:
+        json_data = json.load(json_file)
+        
+    fx = json_data["fx"]
+    fy = json_data["fy"]
+    cx = json_data["cx"]
+    cy = json_data["cy"]
     
     return fx, fy, cx, cy
 
 def set_random_data(data, num=100):
-    ran_loc = np.empty((0, 3))
-    ran_x = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
-    ran_y = np.random.randint(low=0, high=np.shape(data)[0]-1, size=num, dtype=int)
-    ran_pix = np.vstack((ran_x, ran_y)).T
+    ran_1 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
+    ran_2 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
+    ran_3 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
     
-    for point in ran_pix:
-        pos = data[point[1],point[0],:]
-        ran_loc = np.vstack((ran_loc, pos))
-        
-    ran_loc = delete_nan_inf(ran_loc)
+    ran_pix = np.vstack((ran_1, ran_2))
+    ran_pix = np.vstack((ran_pix, ran_3))
+    return ran_pix.T
+
+def find_plane(loc ,thres, repeat, thread):
+    ran_point = set_random_data(loc, repeat)
+    p = Pool(thread)
     
-    return ran_loc
+    c_null_v = p.starmap(cal_r, [(loc, points, thres) for points in ran_point])
+    
+    p.close()
+    p.join()
+    
+    return np.array(c_null_v)
 
-def find_plane(loc ,thres):
-    data = np.nan_to_num(loc, copy=True)
-    d_v = np.array(([1],[1],[1]))
-    i = 0;
-    m_count = 0;
-    m_null_v = []
-    while i<loc.shape[0]:
-        print(i)
-        j = i+1
-        while j<loc.shape[0]:
-            k = j+1
-            while k<loc.shape[0]:
-                data_v = np.empty((0,3))
-                count = 0
-                if (np.isnan(loc[i]).any() or np.isnan(loc[j]).any() or np.isnan(loc[k]).any()) == False:
-                    data_v = np.vstack((data_v, data[i]))
-                    data_v = np.vstack((data_v, data[j]))
-                    data_v = np.vstack((data_v, data[k]))
-                    data_v = np.hstack((data_v, d_v))
-                    
-                    null_v = null_space(data_v)
-                    a, b, c, d = null_v[0], null_v[1], null_v[2], null_v[3]
-                    for point in data:
-                        h = (np.abs(a*point[0]+b*point[1]+c*point[2]+d))/(np.sqrt(a**2+b**2+c**2))
-                            
-                        if h<thres:
-                            count += 1
-                            
-                        
-                    if count > m_count:
-                        m_null_v = null_v
-                        m_count = count
-                        
-                
-                k+=1
-                
-            j+=1
-            
-        i+=1
+def cal_r(data, points, thres):   #Compute the number of points that less than threshold
+    p1, p2, p3 = points[0], points[1], points[2]
+    matrix = np.array([data[:,p1],
+                        data[:,p2],
+                        data[:,p3]])
+    
+    matrix = np.hstack((matrix, np.array([[1],[1],[1]])))
+    
+    A, B, C, D = np.squeeze(null_space(matrix))
         
-    return m_null_v, m_count
+    x = data[0]
+    y = data[1]
+    z = data[2]
+    
+    h = abs(A*x+B*y+C*z+D)/(np.sqrt(A**2+B**2+C**2))
+    h = np.size(h[h<0.005])
+    
+    return h, A, B, C, D
+        
 
-def delete_nan_inf(data):
-    n = 0
-    count = 0
-    while n<np.shape(data)[0]:
-        if np.isnan(data[n]).any() or np.isinf(data[n]).any():
-            data = np.delete(data, n, 0)
-            n-=1
-            count+=1
-        n+=1
-        
-    print("Deleted point :",count)
-        
-    return data
+def get_3d(data):
+    pix_x = np.linspace(0, np.shape(data)[1]-1, np.shape(data)[1])
+    pix_y = np.linspace(0, np.shape(data)[0]-1, np.shape(data)[0])
+    X, Y = np.meshgrid(pix_x, pix_y)
+
+    pose_x = ((X-cx)*datas)/fx
+    pose_y = ((cy-Y)*datas)/fy
+
+    loc_data = np.dstack([pose_x, pose_y])
+    loc_data = np.dstack([loc_data, datas])
+    
+    result_data = delete_nun_inf(loc_data)
+    
+    return result_data
+
+def get_main_plane(data, repeat, threshold=0.001, n_worker=mp.cpu_count()):
+    result = find_plane(data, threshold, repeat, n_worker) 
+    max_result = result[np.argmax(result[:,0], axis=0)]
+    
+    return max_result
+    
+def delete_nun_inf(data):
+    nan_deleted_data = data[~np.isnan(data)]
+    inf_deleted_data = nan_deleted_data[~np.isinf(nan_deleted_data)]
+    result_data = np.reshape(inf_deleted_data,(int(inf_deleted_data.size/3),3)).T
+    
+    return result_data
 
 if __name__ == '__main__':
     start_t = time()
-    with open("depth_file.pickle", "rb") as f: #load depth_value
+    
+    with open("data_files/test_0815.pickle", "rb") as f: #load depth_value
         datas = pickle.load(f)
         
+        
+    fx, fy, cx, cy = set_param("data_files/zed_param.json")   #get camera parameter
+    height, width = np.shape(datas)
     
-    cam = zed.ZED()
-    cam.open()
-    cam_info = cam.camera.get_camera_information()
-    fx, fy, cx, cy = set_data(cam_info)
+    point_3d = get_3d(datas)   #get 3d potints origin from cx, cy
     
-    width = cam_info.camera_resolution.width
-    height = cam_info.camera_resolution.height
+    main_plane = get_main_plane(point_3d, 100)   #find main plane
     
-    col=0
-    row=0
-    
-    loc_data = np.empty((height, width, 3))
 
-    for data in np.nditer(datas):
-        n_x = col-cx
-        n_y = cy-row
-        r_x = (n_x*data)/fx
-        r_y = (n_y*data)/fy
-   
-        loc_data[row][col] = (r_x, r_y, data)
-   
-        col += 1
-        if col==width: 
-            col=0
-            row +=1
-            
-    ran_loc = set_random_data(loc_data, 70)
-    null_v, m_count = find_plane(ran_loc, 0.005)
-
-    cam.close()
     end_t = time()
     print(end_t-start_t)

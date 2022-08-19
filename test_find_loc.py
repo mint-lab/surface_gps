@@ -1,14 +1,16 @@
 import pickle
-import zed
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 
-def set_data(info):
-    param = info.calibration_parameters.left_cam
-    fx = param.fx
-    fy = param.fy
-    cx = param.cx
-    cy = param.cy
+def set_data(path):
+    with open(path, "r") as json_file:
+        json_data = json.load(json_file)
+        
+    fx = json_data["fx"]
+    fy = json_data["fy"]
+    cx = json_data["cx"]
+    cy = json_data["cy"]
     
     return fx, fy, cx, cy
 
@@ -23,38 +25,30 @@ def set_random_data(data, num=100):
         ran_loc = np.vstack((ran_loc, pos))
     
     return ran_loc
+
+def get_3d(data):
+    pix_x = np.linspace(0, 1279, 1280)
+    pix_y = np.linspace(0, 719, 720)
+    X, Y = np.meshgrid(pix_x, pix_y)
+
+    pose_x = ((X-cx)*datas)/fx
+    pose_y = ((cy-Y)*datas)/fy
+
+    loc_data = np.dstack([pose_x, pose_y])
+    loc_data = np.dstack([loc_data, datas])
+    
+    return loc_data
     
 
 if __name__ == '__main__':
-    with open("depth_file.pickle", "rb") as f: #load depth_value
+    with open("data_files/test_0815.pickle", "rb") as f: #load depth_value
         datas = pickle.load(f)
-    
-    cam = zed.ZED()
-    cam.open()
-    cam_info = cam.camera.get_camera_information()
-    fx, fy, cx, cy = set_data(cam_info)
-    
-    width = cam_info.camera_resolution.width
-    height = cam_info.camera_resolution.height
-    
-    col=0
-    row=0
-    
-    loc_data = np.empty((height, width, 3))
+        
     show_plot = True
-
-    for data in np.nditer(datas):
-        n_x = col-cx
-        n_y = cy-row
-        r_x = (n_x*data)/fx
-        r_y = (n_y*data)/fy
-   
-        loc_data[row][col] = (r_x, r_y, data)
-   
-        col += 1
-        if col==width:
-            col=0
-            row +=1
+    
+    fx, fy, cx, cy = set_data("data_files/zed_param.json")
+    
+    loc_data = get_3d(datas)
             
     if show_plot:
         ran_loc = set_random_data(loc_data, 5000)
@@ -64,5 +58,3 @@ if __name__ == '__main__':
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
-
-    cam.close()
