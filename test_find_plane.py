@@ -19,7 +19,7 @@ def set_param(path):
     
     return fx, fy, cx, cy
 
-def set_random_data(data, num=100):
+def set_random_data(data, num):
     ran_1 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
     ran_2 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
     ran_3 = np.random.randint(low=0, high=np.shape(data)[1]-1, size=num, dtype=int)
