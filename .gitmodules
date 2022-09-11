@@ -1,0 +1,3 @@
+[submodule "sensorpy"]
+	path = sensorpy
+	url = https://github.com/mint-lab/sensorpy.git
