@@ -46,8 +46,6 @@ def get_pose_transformation(rvec, tvec):
 
 if __name__ == '__main__':
     config_file = 'cv_calib_mono.json'
-    config_file = 'data/220720_M327/calib.json'
-    config_file = 'data/220902_Gym/calib1.json'
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
 
