@@ -4,9 +4,9 @@ import cv2 as cv
 import open3d as o3d
 from sensorpy.zed import ZED, print_zed_info
 
-def get_transformation(qxyzw, tvec):
+def get_transformation(R, tvec):
     T = np.eye(4)
-    T[0:3,0:3] = o3d.geometry.get_rotation_matrix_from_quaternion(qxyzw[[1, 2, 3, 0]]) # 'xyzw' to 'wxyz'
+    T[0:3,0:3] = R
     T[0:3,-1] = tvec
     return T
 
@@ -35,11 +35,16 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
         if zed.grab():
             # Get all images
             color, _, depth = zed.get_images()
-            status, qxyzw, tvec = zed.get_tracking_pose()
+            status, _, tvec = zed.get_tracking_pose()
+            R_C = np.array([[1, 0, 0],
+                           [0, 0, 1],
+                           [0, -1, 0]])
+            tvec = R_C@tvec
+            R = R_C@zed.get_rotation()
 
             # Show the 3D pose
             zed_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(1)
-            zed_vis.transform(get_transformation(qxyzw, tvec))
+            zed_vis.transform(get_transformation(R, tvec))
             if not vis.is_visible:
                 break
             vis.remove_geometry('Camera')
@@ -67,6 +72,6 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
 
 
 if __name__ == '__main__':
-    play_3d_data('data/220720_M327/short.svo')
+    # play_3d_data('data/220720_M327/short.svo')
     # play_3d_data('data/220902_Gym/short.svo')
-    # play_3d_data()
+    play_3d_data()
