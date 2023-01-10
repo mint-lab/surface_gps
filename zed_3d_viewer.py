@@ -20,12 +20,16 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
     app = o3d.visualization.gui.Application.instance
     app.initialize()
     vis = o3d.visualization.O3DVisualizer('ZED 3D Viewer: 3D Data')
-    vis.ground_plane = o3d.visualization.rendering.Scene.XZ
+    vis.ground_plane = o3d.visualization.rendering.Scene.XY
     vis.show_skybox(False)
     vis.show_axes = True
     vis.show_ground = True
     vis.show_settings = True
     app.add_window(vis)
+    T_c2w = np.array([[ 0,  0, 1, 0],
+                      [-1,  0, 0, 0],
+                      [ 0, -1, 0, 0],
+                      [ 0,  0, 0, 1]])
 
     # Prepare the image viewer
     cv.namedWindow('ZED 3D Viewer: Color and Depth')
@@ -35,16 +39,12 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
         if zed.grab():
             # Get all images
             color, _, depth = zed.get_images()
-            status, _, tvec = zed.get_tracking_pose()
-            R_C = np.array([[1, 0, 0],
-                           [0, 0, 1],
-                           [0, -1, 0]])
-            tvec = R_C@tvec
-            R = R_C@zed.get_rotation()
+            status, qxyzw, tvec = zed.get_tracking_pose()
+            robj = Rotation.from_quat(qxyzw)
 
             # Show the 3D pose
             zed_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(1)
-            zed_vis.transform(get_transformation(R, tvec))
+            zed_vis.transform(T_c2w @ get_transformation(robj.as_matrix(), tvec))
             if not vis.is_visible:
                 break
             vis.remove_geometry('Camera')
@@ -72,6 +72,6 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
 
 
 if __name__ == '__main__':
-    # play_3d_data('data/220720_M327/short.svo')
+    play_3d_data('data/220720_M327/short.svo')
     # play_3d_data('data/220902_Gym/short.svo')
-    play_3d_data()
+    # play_3d_data()
