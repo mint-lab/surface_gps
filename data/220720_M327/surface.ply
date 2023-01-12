@@ -1,0 +1,16 @@
+ply
+format ascii 1.0
+comment Created by Sunglok Choi
+element vertex 4
+property double x
+property double y
+property double z
+element face 2
+property list uchar uint vertex_indices
+end_header
+0   0 0
+0.8 0 0
+0   0 2.16
+0.8 0 2.16
+3 0 1 2
+3 3 1 2
