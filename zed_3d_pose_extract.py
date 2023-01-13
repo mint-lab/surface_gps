@@ -10,7 +10,7 @@ def get_transformation(R, tvec):
     T[0:3,-1] = tvec
     return T
 
-def extract_3d_pose(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.5, output_file='zed_3d_pose_extract.npy'):
+def extract_3d_pose(svo_file='', svo_realtime=False, depth_mode='neural', zoom=0.5, output_file='zed_3d_pose_extract.npy'):
     zed = ZED()
     zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode=depth_mode)
     zed.start_tracking()
@@ -31,7 +31,7 @@ def extract_3d_pose(svo_file=None, svo_realtime=False, depth_mode='neural', zoom
     cv.namedWindow('SurfaceGPS 3D Viewer: Color and Depth')
 
     poses = []
-    is_first = True
+    frame = 0
     while zed.is_open():
         # Get images and 3D pose
         if not zed.grab():
@@ -41,7 +41,7 @@ def extract_3d_pose(svo_file=None, svo_realtime=False, depth_mode='neural', zoom
         robj = Rotation.from_quat(qxyzw)
 
         # Record the 3D pose
-        poses.append(np.hstack([tvec, robj.as_rotvec(), status]))
+        poses.append(np.hstack([frame, tvec, robj.as_rotvec(), status]))
 
         # Show the 3D pose
         zed_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(1)
@@ -51,8 +51,7 @@ def extract_3d_pose(svo_file=None, svo_realtime=False, depth_mode='neural', zoom
         vis.remove_geometry('Camera')
         vis.add_geometry('Camera', zed_vis)
         vis.post_redraw()
-        if is_first:
-            is_first = False
+        if frame == 0:
             vis.reset_camera_to_default()
 
         # Show the images
@@ -65,6 +64,7 @@ def extract_3d_pose(svo_file=None, svo_realtime=False, depth_mode='neural', zoom
             key = cv.waitKey(0)
         if key == 27:       # ESC
             break
+        frame += 1
 
     cv.destroyAllWindows()
     vis.close()

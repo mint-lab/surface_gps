@@ -1,0 +1,12 @@
+{
+    "svo_file"          : "data/220720_M327/long.svo",
+    "surface_file"      : "data/220720_M327/surface.ply",
+
+    "local_init_rvec"   : [1.57079633, 0, 0],
+    "local_init_tvec"   : [0.4, 2.16, 0],
+
+    "vis_axes_length"   : 0.2,
+    "vis_cam_center"    : [0.4, 1.5, 0],
+    "vis_cam_eye"       : [0.4, 2.5, -0.5],
+    "vis_show_ground"   : false
+}
