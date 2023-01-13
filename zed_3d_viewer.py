@@ -12,7 +12,7 @@ def get_transformation(R, tvec):
 
 def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.5, auto_track=False):
     zed = ZED()
-    zed.open(svo_file=svo_file, svo_realtime=False, depth_mode=depth_mode)
+    zed.open(svo_file=svo_file, svo_realtime=False, depth_mode=depth_mode, min_depth=0.2)
     zed.start_tracking()
     print_zed_info(zed)
 
@@ -26,8 +26,8 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
     vis.show_ground = True
     vis.show_settings = True
     app.add_window(vis)
-    T_c2w = np.array([[ 0,  0, 1, 0],
-                      [-1,  0, 0, 0],
+    T_c2w = np.array([[ 1,  0, 0, 0],
+                      [0,  0, 1, 0],
                       [ 0, -1, 0, 0],
                       [ 0,  0, 0, 1]])
 
@@ -45,10 +45,20 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
             # Show the 3D pose
             zed_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(1)
             zed_vis.transform(T_c2w @ get_transformation(robj.as_matrix(), tvec))
+            pcd = o3d.t.geometry.PointCloud(zed.get_xyz().reshape(-1,3))
+            pcd.point.colors=(color/255).reshape(-1,3).astype(np.float32)
+            pcd.remove_non_finite_points()
+            pcd = pcd.voxel_down_sample(voxel_size=0.005)
+            pcd.transform(T_c2w @ get_transformation(robj.as_matrix(), tvec))
+            cl, ind = pcd.remove_radius_outliers(nb_points=6, search_radius=0.01)
+            inlier_pcd = pcd.select_by_mask(ind)
+            
             if not vis.is_visible:
                 break
             vis.remove_geometry('Camera')
             vis.add_geometry('Camera', zed_vis)
+            vis.remove_geometry('pcd')
+            vis.add_geometry('pcd', inlier_pcd)
             vis.post_redraw()
             if is_first or auto_track:
                 is_first = False
@@ -72,6 +82,6 @@ def play_3d_data(svo_file=None, svo_realtime=False, depth_mode='neural', zoom=0.
 
 
 if __name__ == '__main__':
-    play_3d_data('data/220720_M327/short.svo')
+    # play_3d_data('data/220720_M327/short.svo')
     # play_3d_data('data/220902_Gym/short.svo')
-    # play_3d_data()
+    play_3d_data()
