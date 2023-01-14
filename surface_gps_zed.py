@@ -12,7 +12,7 @@ def get_transformation(R, tvec):
     return T
 
 class SurfaceGPSZED:
-    def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3)):
+    def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3)):
         # self.state_robj = Rotation.from_rotvec(init_rvec)
         # self.state_tvec = init_tvec
         self.state_T = get_transformation(Rotation.from_rotvec(init_rvec).as_matrix(), init_tvec)
@@ -40,12 +40,18 @@ def load_config(config_file):
         'surface_file'      : '',
         'zed_depth_mode'    : 'neural',
         'zed_print_info'    : True,
-        'local_name'        : 'SurfaceGPSZED',
-        'local_init_rvec'   : [0, 0, 0],
-        'local_init_tvec'   : [0, 0, 0],
+        'localizer_name'    : 'SurfaceGPSZED',
+        'localizer_options' : {
+            'init_rvec'     : [0, 0, 0],
+            'init_tvec'     : [0, 0, 0],
+            'zed_K'         : [[500, 0, 640], [0, 500, 360], [0, 0, 1]],
+            'zed_distort'   : [0, 0, 0, 0, 0],
+            'zed_rvec'      : [0, 0, 0],
+            'zed_tvec'      : [0, 0, 0]
+        },
         'vis_axes_length'   : 1,
         'vis_cam_fov'       : 90,
-        'vis_cam_center'    : [0, 0, 0],
+        'vis_cam_lookat'    : [0, 0, 0],
         'vis_cam_eye'       : [0, 0, -1],
         'vis_cam_up'        : [0, -1, 0],
         'vis_image_zoom'    : 0.5,
@@ -64,7 +70,9 @@ def load_config(config_file):
             config.update(config_from_file)
 
     # Preprocess the configuration
-    for key in ['local_init_rvec', 'local_init_tvec', 'vis_cam_eye', 'vis_cam_center', 'vis_cam_up']:
+    for key in ['init_rvec', 'init_tvec', 'zed_K', 'zed_distort', 'zed_rvec', 'zed_tvec']:
+        config['localizer_option'][key] = np.array(config['localizer_option'][key], dtype=np.float64)
+    for key in ['vis_cam_lookat', 'vis_cam_eye', 'vis_cam_up']:
         config[key] = np.array(config[key], dtype=np.float64)
     return config
 
@@ -91,7 +99,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
     app = o3d.visualization.gui.Application.instance
     app.initialize()
     vis = o3d.visualization.O3DVisualizer(win_title + ': 3D Data')
-    vis.setup_camera(config['vis_cam_fov'], config['vis_cam_center'], config['vis_cam_eye'], config['vis_cam_up'])
+    vis.setup_camera(config['vis_cam_fov'], config['vis_cam_lookat'], config['vis_cam_eye'], config['vis_cam_up'])
     GROUND_PLANE = {'XY': o3d.visualization.rendering.Scene.XY, 'XZ': o3d.visualization.rendering.Scene.XZ, 'YZ': o3d.visualization.rendering.Scene.YZ}
     vis.ground_plane = GROUND_PLANE[config['vis_ground_plane']]
     vis.show_skybox(config['vis_show_skybox'])
@@ -107,7 +115,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
         vis.add_geometry('Surface', surface)
 
     # Prepare the localizer
-    localizer = SurfaceGPSZED(init_rvec=config['local_init_rvec'], init_tvec=config['local_init_tvec'])
+    localizer = SurfaceGPSZED(**config['localizer_option'])
 
     # Run the localizer with sensor data
     frame = 0
