@@ -82,5 +82,7 @@ def extract_3d_pose(svo_file='', svo_realtime=False, depth_mode='neural', zoom=0
 
 if __name__ == '__main__':
     extract_3d_pose('data/220720_M327/short.svo')
+    # extract_3d_pose('data/220720_M327/long.svo')
     # extract_3d_pose('data/220902_Gym/short.svo')
+    # extract_3d_pose('data/220902_Gym/long.svo')
     # extract_3d_pose(None, output_file='')

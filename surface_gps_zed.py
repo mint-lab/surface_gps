@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
-import json
+import json, copy
 import cv2 as cv
 import open3d as o3d
 from sensorpy.zed import ZED, print_zed_info
@@ -13,24 +13,26 @@ def get_transformation(R, tvec):
 
 class SurfaceGPSZED:
     def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3)):
-        # self.state_robj = Rotation.from_rotvec(init_rvec)
-        # self.state_tvec = init_tvec
-        self.state_T = get_transformation(Rotation.from_rotvec(init_rvec).as_matrix(), init_tvec)
-        self.odom_T_prev = None
+        T_world2robot = get_transformation(Rotation.from_rotvec(init_rvec).as_matrix(), init_tvec)
+        self.T_zed2robot = get_transformation(Rotation.from_rotvec(zed_rvec).as_matrix(), zed_tvec)
+        self.T_robot2zed = np.linalg.inv(self.T_zed2robot)
+        self.T_world2zed = T_world2robot @ self.T_robot2zed
+        self.T_odom_prev = None
 
-    def apply_odometry(self, odom_qxyzw, odom_tvec):
-        robj = Rotation.from_quat(odom_qxyzw)
-        odom_T_curr = get_transformation(robj.as_matrix(), odom_tvec)
-        if self.odom_T_prev is not None:
-            T_delta = odom_T_curr @ np.linalg.inv(self.odom_T_prev)
-            self.state_T = T_delta @ self.state_T
-        self.odom_T_prev = odom_T_curr
+    def apply_zed_pose(self, zed_qxyzw, zed_tvec):
+        robj = Rotation.from_quat(zed_qxyzw)
+        T_odom_curr = get_transformation(robj.as_matrix(), zed_tvec)
+        if self.T_odom_prev is not None:
+            T_delta = T_odom_curr @ np.linalg.inv(self.T_odom_prev)
+            self.T_world2zed = T_delta @ self.T_world2zed
+        self.T_odom_prev = T_odom_curr
 
-    # def get_pose(self):
-    #     return self.state_robj.as_rotvec(), self.state_tvec
+    def get_T_robot(self):
+        T_world2robot = self.T_world2zed @ self.T_zed2robot
+        return T_world2robot
 
-    def get_poseT(self):
-        return self.state_T
+    def get_T_zed(self):
+        return self.T_world2zed
 
 def load_config(config_file):
     '''Load configuration from the given file'''
@@ -38,10 +40,13 @@ def load_config(config_file):
     # The default configuration
     config = {
         'surface_file'      : '',
+        'surface_color'     : [0.6, 0.6, 0.6],
+        'robot_size'        : [],
+        'robot_color'       : [0.9, 0.6, 0.3],
         'zed_depth_mode'    : 'neural',
         'zed_print_info'    : True,
         'localizer_name'    : 'SurfaceGPSZED',
-        'localizer_options' : {
+        'localizer_option'  : {
             'init_rvec'     : [0, 0, 0],
             'init_tvec'     : [0, 0, 0],
             'zed_K'         : [[500, 0, 640], [0, 500, 360], [0, 0, 1]],
@@ -112,7 +117,19 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
     surface = None
     if config['surface_file']:
         surface = o3d.io.read_triangle_mesh(config['surface_file'])
+        surface.compute_triangle_normals()
+        surface.paint_uniform_color(config['surface_color'])
         vis.add_geometry('Surface', surface)
+
+    # Prepare the robot and ZED camera for visualization
+    robot_vis = None
+    if len(config['robot_size']) >= 3:
+        width, height, depth, *_ = config['robot_size']
+        robot_vis = o3d.geometry.TriangleMesh().create_box(width, height, depth)
+        robot_vis.vertices = o3d.utility.Vector3dVector(np.array(robot_vis.vertices) - [width/2, height, depth/2])
+        robot_vis.compute_triangle_normals()
+        robot_vis.paint_uniform_color(config['robot_color'])
+    zed_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(config['vis_axes_length'])
 
     # Prepare the localizer
     localizer = SurfaceGPSZED(**config['localizer_option'])
@@ -127,15 +144,21 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
         zed_state, zed_qxyzw, zed_tvec = zed.get_tracking_pose()
 
         # Perform the localizer
-        localizer.apply_odometry(zed_qxyzw, zed_tvec)
+        if zed_state:
+            localizer.apply_zed_pose(zed_qxyzw, zed_tvec)
 
         # Show the 3D pose
-        robot_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(config['vis_axes_length'])
-        robot_vis.transform(localizer.get_poseT())
         if not vis.is_visible:
             break
-        vis.remove_geometry('Robot')
-        vis.add_geometry('Robot', robot_vis)
+        if robot_vis is not None:
+            robot_copy = copy.deepcopy(robot_vis)
+            robot_copy.transform(localizer.get_T_robot())
+            vis.remove_geometry('Robot')
+            vis.add_geometry('Robot', robot_copy)
+        zed_copy = copy.deepcopy(zed_vis)
+        zed_copy.transform(localizer.get_T_zed())
+        vis.remove_geometry('ZED-Left')
+        vis.add_geometry('ZED-Left', zed_copy)
         vis.post_redraw()
 
         # Show the images
@@ -159,5 +182,6 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
 
 if __name__ == '__main__':
+    # test_localizer(svo_file='data/220720_M327/short.svo')
     test_localizer('config_M327.json', svo_file='data/220720_M327/short.svo')
     # test_localizer(svo_file='data/220902_Gym/short.svo')
