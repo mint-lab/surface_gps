@@ -31,8 +31,8 @@ class SurfaceGPSZED:
         return True
 
     def apply_odometry(self, zed_qxyzw, zed_tvec):
-        r = Rotation.from_quat(zed_qxyzw)
-        T_odom_curr = get_transformation(r.as_matrix(), zed_tvec)
+        zed_r = Rotation.from_quat(zed_qxyzw)
+        T_odom_curr = get_transformation(zed_r.as_matrix(), zed_tvec)
         if self.T_odom_prev is not None:
             T_delta = T_odom_curr @ np.linalg.inv(self.T_odom_prev)
             self.T_world2zed = T_delta @ self.T_world2zed
@@ -40,8 +40,8 @@ class SurfaceGPSZED:
         return True
 
     # def apply_orientation(self, zed_qxyzw):
-    #     r = Rotation.from_quat(zed_qxyzw)
-    #     self.T_world2zed[0:3,0:3] = r.as_matrix() # TODO
+    #     zed_r = Rotation.from_quat(zed_qxyzw)
+    #     self.T_world2zed[0:3,0:3] = zed_r.as_matrix() # TODO
     #     return True
 
     def project_on_surface(self):
@@ -94,6 +94,7 @@ def load_config(config_file):
         'vis_image_zoom'    : 0.5,
         'vis_ground_plane'  : 'XZ',
         'vis_show_depth'    : True,
+        'vis_show_pcd'      : True,
         'vis_show_skybox'   : False,
         'vis_show_axes'     : True,
         'vis_show_ground'   : True,
@@ -181,9 +182,21 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
             localizer.apply_odometry(zed_qxyzw, zed_tvec)
             localizer.project_on_surface()
 
-        # Show the 3D pose
+        # Show the 3D information
         if not vis.is_visible:
             break
+        if config['vis_show_pcd']:
+            zed_xyz = zed.get_xyz().reshape(-1,3).astype(np.float64)
+            zed_rgb = (zed_color / 255).reshape(-1,3).astype(np.float64)
+            valid = zed_xyz[:,-1] > 0
+            zed_xyz = zed_xyz[valid,:]
+            zed_rgb = zed_rgb[valid,:]
+            zed_pcd = o3d.geometry.PointCloud()
+            zed_pcd.points = o3d.utility.Vector3dVector(zed_xyz)
+            zed_pcd.colors = o3d.utility.Vector3dVector(zed_rgb)
+            zed_pcd.transform(localizer.get_T_zed())
+            vis.remove_geometry('PointCloud')
+            vis.add_geometry('PointCloud', zed_pcd)
         if robot_vis is not None:
             robot_copy = copy.deepcopy(robot_vis)
             robot_copy.transform(localizer.get_T_robot())
