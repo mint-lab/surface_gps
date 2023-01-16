@@ -17,5 +17,6 @@
     "vis_axes_length"   : 0.2,
     "vis_cam_lookat"    : [ 0.4, 1.5, 0 ],
     "vis_cam_eye"       : [ 0.4, 2.5, -0.5 ],
-    "vis_show_ground"   : false
+    "vis_show_ground"   : false,
+    "vis_show_setting"  : false
 }

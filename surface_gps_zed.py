@@ -12,20 +12,52 @@ def get_transformation(R, tvec):
     return T
 
 class SurfaceGPSZED:
-    def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3)):
+    def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3), project_threshold=1.):
         T_world2robot = get_transformation(Rotation.from_rotvec(init_rvec).as_matrix(), init_tvec)
         self.T_zed2robot = get_transformation(Rotation.from_rotvec(zed_rvec).as_matrix(), zed_tvec)
         self.T_robot2zed = np.linalg.inv(self.T_zed2robot)
         self.T_world2zed = T_world2robot @ self.T_robot2zed
         self.T_odom_prev = None
+        self.surface_mesh = None
+        self.surface_impl = None
 
-    def apply_zed_pose(self, zed_qxyzw, zed_tvec):
-        robj = Rotation.from_quat(zed_qxyzw)
-        T_odom_curr = get_transformation(robj.as_matrix(), zed_tvec)
+        self.project_threshold = project_threshold
+
+    def load_surface(self, surface):
+        self.surface_mesh = copy.deepcopy(surface)
+        self.surface_mesh.compute_triangle_normals()
+        self.surface_impl = o3d.t.geometry.RaycastingScene()
+        self.surface_impl.add_triangles(o3d.t.geometry.TriangleMesh.from_legacy(self.surface_mesh))
+        return True
+
+    def apply_odometry(self, zed_qxyzw, zed_tvec):
+        r = Rotation.from_quat(zed_qxyzw)
+        T_odom_curr = get_transformation(r.as_matrix(), zed_tvec)
         if self.T_odom_prev is not None:
             T_delta = T_odom_curr @ np.linalg.inv(self.T_odom_prev)
             self.T_world2zed = T_delta @ self.T_world2zed
         self.T_odom_prev = T_odom_curr
+        return True
+
+    # def apply_orientation(self, zed_qxyzw):
+    #     r = Rotation.from_quat(zed_qxyzw)
+    #     self.T_world2zed[0:3,0:3] = r.as_matrix() # TODO
+    #     return True
+
+    def project_on_surface(self):
+        if self.surface_impl is not None:
+            T_world2robot = self.get_T_robot()
+            robot_pt = T_world2robot[0:3,-1]
+            query_pt = o3d.core.Tensor(robot_pt.reshape(1,-1), dtype=o3d.core.Dtype.Float32)
+            result = self.surface_impl.compute_closest_points(query_pt)
+            if len(result['points']) > 0:
+                closest_pt = result['points'][0].numpy()
+                dist = np.linalg.norm(closest_pt - robot_pt)
+                if dist < self.project_threshold:
+                    T_world2robot[0:3,-1] = closest_pt
+                    self.T_world2zed = T_world2robot @ self.T_robot2zed
+                    return True
+        return False
 
     def get_T_robot(self):
         T_world2robot = self.T_world2zed @ self.T_zed2robot
@@ -117,7 +149,6 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
     surface = None
     if config['surface_file']:
         surface = o3d.io.read_triangle_mesh(config['surface_file'])
-        surface.compute_triangle_normals()
         surface.paint_uniform_color(config['surface_color'])
         vis.add_geometry('Surface', surface)
 
@@ -133,6 +164,8 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
     # Prepare the localizer
     localizer = SurfaceGPSZED(**config['localizer_option'])
+    if surface is not None:
+        localizer.load_surface(surface)
 
     # Run the localizer with sensor data
     frame = 0
@@ -145,7 +178,8 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
         # Perform the localizer
         if zed_state:
-            localizer.apply_zed_pose(zed_qxyzw, zed_tvec)
+            localizer.apply_odometry(zed_qxyzw, zed_tvec)
+            localizer.project_on_surface()
 
         # Show the 3D pose
         if not vis.is_visible:
