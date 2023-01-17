@@ -1,14 +1,14 @@
 {
-    "cam_file"          : "data/220720_M327/calib.png",
-    "cam_K"             : [[524.6716918945312, 0, 637.4473876953125],
-                           [0, 524.6716918945312, 363.0568542480469],
+    "cam_file"          : "data/230116_M327/calib.png",
+    "cam_K"             : [[528.6235961914062, 0, 650.1663818359375],
+                           [0, 528.6235961914062, 367.81011962890625],
                            [0, 0, 1]],
     "cam_dist"          : [0.0, 0.0, 0.0, 0.0, 0.0],
     "chess_pattern_cols": 9,
     "chess_pattern_rows": 6,
     "chess_cellsize"    : 0.03,
-    "offset_front"      : 0.5,
-    "offset_left"       : 0.135,
+    "offset_front"      : 0.5312,
+    "offset_left"       : 0.15,
     "offset_height"     : 0.201,
     "calib_option"      : ["CALIB_USE_INTRINSIC_GUESS",
                            "CALIB_FIX_FOCAL_LENGTH",
@@ -17,6 +17,6 @@
                            "CALIB_FIX_K1",
                            "CALIB_FIX_K2",
                            "CALIB_FIX_K3"],
-    "calib_output"      : "data/220720_M327/calib_result.json",
+    "calib_output"      : "data/230116_M327/calib_result.json",
     "save_cam_pose"     : true
 }

@@ -4,6 +4,7 @@ import json, copy
 import cv2 as cv
 import open3d as o3d
 from sensorpy.zed import ZED, print_zed_info
+import opencx as cx
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -39,10 +40,10 @@ class SurfaceGPSZED:
         self.T_odom_prev = T_odom_curr
         return True
 
-    # def apply_orientation(self, zed_qxyzw):
-    #     zed_r = Rotation.from_quat(zed_qxyzw)
-    #     self.T_world2zed[0:3,0:3] = zed_r.as_matrix() # TODO
-    #     return True
+    def apply_orientation(self, zed_qxyzw):
+        zed_r = Rotation.from_quat(zed_qxyzw)
+        self.T_world2zed[0:3,0:3] = zed_r.as_matrix() # TODO
+        return True
 
     def project_on_surface(self):
         if self.surface_impl is not None:
@@ -119,7 +120,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
     # Load the configuration file
     config = load_config(config_file)
-    if not svo_file and ('svo_file' in config):
+    if 'svo_file' in config:
         svo_file = config['svo_file']
 
     # Open the ZED camera
@@ -179,6 +180,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
         # Perform the localizer
         if zed_state:
+            # localizer.apply_orientation(zed_qxyzw)
             localizer.apply_odometry(zed_qxyzw, zed_tvec)
             localizer.project_on_surface()
 
@@ -187,7 +189,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
             break
         if config['vis_show_pcd']:
             zed_xyz = zed.get_xyz().reshape(-1,3).astype(np.float64)
-            zed_rgb = (zed_color / 255).reshape(-1,3).astype(np.float64)
+            zed_rgb = (zed_color/255).reshape(-1,3).astype(np.float64)
             valid = zed_xyz[:,-1] > 0
             zed_xyz = zed_xyz[valid,:]
             zed_rgb = zed_rgb[valid,:]
@@ -213,6 +215,11 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
         if config['vis_show_depth']:
             zed_depth_color = cv.applyColorMap(zed_depth, cv.COLORMAP_JET)
             merge = cv.resize(np.vstack((zed_color, zed_depth_color)), (0, 0), fx=config['vis_image_zoom'], fy=config['vis_image_zoom'])
+        robot_T = localizer.get_T_robot()
+        robot_euler = Rotation.from_matrix(robot_T[0:3,0:3]).as_euler('xyz', degrees=True)
+        info_text = f'P: ({robot_T[0,-1]:.3f}, {robot_T[1,-1]:.3f}, {robot_T[2,-1]:.3f}) [m]\n'
+        info_text += f'O: ({robot_euler[0]:.1f}, {robot_euler[1]:.1f}, {robot_euler[2]:.1f}) [deg]'
+        cx.putText(merge, info_text, (10, 10))
         cv.imshow(win_title + ': Image', merge)
 
         key = cv.waitKey(1)
@@ -229,6 +236,15 @@ def test_localizer(config_file='', svo_file='', svo_realtime=False):
 
 
 if __name__ == '__main__':
-    # test_localizer(svo_file='data/220720_M327/short.svo')
-    test_localizer('config_M327.json', svo_file='data/220720_M327/short.svo')
+    # test_localizer('config_220720_M327.json', svo_file='data/220720_M327/short.svo')
+    # test_localizer('config_220720_M327.json', svo_file='data/220720_M327/long.svo')
+
+    test_localizer('config_230116_M327.json', svo_file='data/230116_M327/auto_v.svo')
+    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_o.svo')
+    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_o_speed.svo')
+    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_s.svo')
+    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_s_head.svo')
+    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_z.svo')
+    # test_localizer('config_230116_M327_angle.json', svo_file='data/230116_M327/auto_rotate.svo')
+
     # test_localizer(svo_file='data/220902_Gym/short.svo')

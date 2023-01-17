@@ -1,0 +1,23 @@
+{
+    "surface_file"      : "data/220720_M327/surface.ply",
+    "robot_size"        : [ 0.23, 0.076, 0.23 ],
+    "zed_print_info"    : false,
+
+    "localizer_option"  : {
+        "init_rvec"     : [ 1.57079633, 0, 0 ],
+        "init_tvec"     : [ 0.22, 0.3, 0 ],
+        "zed_K"         : [ [ 528.6235961914062, 0.0, 650.1663818359375 ],
+                            [ 0.0, 528.6235961914062, 367.81011962890625 ],
+                            [ 0.0, 0.0, 1.0 ] ],
+        "zed_distort"   : [ 0.0, 0.0, 0.0, 0.0, 0.0 ],
+        "zed_rvec"      : [ 0.06461556081842654, 0.059153567132871294, -0.01155451824512317 ],
+        "zed_tvec"      : [ 0.0691212612149729, 0.336541307152854, 0.0035089126573372444 ]
+    },
+
+    "vis_axes_length"   : 0.2,
+    "vis_cam_lookat"    : [ 0.4, 1.5, 0 ],
+    "vis_cam_eye"       : [ 0.4, 2.0, -1 ],
+    "vis_show_pcd"      : false,
+    "vis_show_ground"   : false,
+    "vis_show_setting"  : false
+}

@@ -1,7 +1,7 @@
 {
-    "svo_file"          : "data/220720_M327/long.svo",
     "surface_file"      : "data/220720_M327/surface.ply",
-    "robot_size"        : [ 0.2315, 0.076, 0.2315 ],
+    "robot_size"        : [ 0.23, 0.076, 0.23 ],
+    "zed_print_info"    : false,
 
     "localizer_option"  : {
         "init_rvec"     : [ 1.57079633, 0, 0 ],

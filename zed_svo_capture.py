@@ -1,5 +1,5 @@
 import cv2 as cv
-from sensorpy.zed import ZED
+from sensorpy.zed import ZED, print_zed_info
 import argparse
 
 def capture_svo(svo_file, svo_realtime=False, cap_file='%04d.png', frame_step=1, frame_offset=[10, 30]):
@@ -7,6 +7,7 @@ def capture_svo(svo_file, svo_realtime=False, cap_file='%04d.png', frame_step=1,
 
     zed = ZED()
     zed.open(svo_file=svo_file, depth_mode='performance')
+    print_zed_info(zed)
 
     cv.namedWindow('ZED SVO Capture')
     frame_total = zed.camera.get_svo_number_of_frames()
