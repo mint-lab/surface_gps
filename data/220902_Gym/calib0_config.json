@@ -1,0 +1,11 @@
+{
+    "cam_file"          : "data/220902_Gym/calib0/*.png",
+    "chess_pattern_cols": 9,
+    "chess_pattern_rows": 6,
+    "chess_cellsize"    : 0.03,
+    "calib_option"      : ["CALIB_ZERO_TANGENT_DIST",
+                           "CALIB_FIX_K1",
+                           "CALIB_FIX_K2",
+                           "CALIB_FIX_K3"],
+    "calib_output"      : "data/220902_Gym/calib0_result.json"
+}
