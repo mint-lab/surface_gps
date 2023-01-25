@@ -4,6 +4,7 @@ import json, copy
 import cv2 as cv
 import open3d as o3d
 from sensorpy.zed import ZED, print_zed_info
+from concurrent.futures import ThreadPoolExecutor
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -11,6 +12,55 @@ def get_transformation(R, tvec):
     T[0:3,-1] = tvec
     return T
 
+def visualize_pcd(vis, zed, config, zed_color, localizer, robot_vis, zed_vis):
+    if config['vis_show_pcd']:
+        zed_xyz = zed.get_xyz().reshape(-1,3).astype(np.float64)
+        zed_rgb = (zed_color / 255).reshape(-1,3).astype(np.float64)
+        valid = zed_xyz[:,-1] > 0
+        zed_xyz = zed_xyz[valid,:]
+        zed_rgb = zed_rgb[valid,:]
+        zed_pcd = o3d.geometry.PointCloud()
+        zed_pcd.points = o3d.utility.Vector3dVector(zed_xyz)
+        zed_pcd.colors = o3d.utility.Vector3dVector(zed_rgb)
+        zed_pcd.transform(localizer.get_T_zed())
+        vis.remove_geometry('PointCloud')
+        vis.add_geometry('PointCloud', zed_pcd)
+    if robot_vis is not None:
+        robot_copy = copy.deepcopy(robot_vis)
+        robot_copy.transform(localizer.get_T_robot())
+        vis.remove_geometry('Robot')
+        vis.add_geometry('Robot', robot_copy)
+    zed_copy = copy.deepcopy(zed_vis)
+    zed_copy.transform(localizer.get_T_zed())
+    vis.remove_geometry('ZED-Left')
+    vis.add_geometry('ZED-Left', zed_copy)
+        
+def process_line(zed, zed_color):
+    xyz = zed.get_xyz()
+    ls_detector = cv.ximgproc.createFastLineDetector(length_threshold=50, canny_th1=1, canny_th2=10)
+    gray = cv.cvtColor(zed_color, cv.COLOR_BGR2GRAY)
+    lines = ls_detector.detect(gray)
+    l_pts = np.empty((0,3))
+    
+    # Visualize line segments
+    lines = lines.astype(int).squeeze()
+    
+    for li in lines:
+        l_pts = np.vstack((l_pts, xyz[li[1], li[0], :], xyz[li[3], li[2], :]))
+        
+    lines_coup = [ [i, i+1] for i in range(0, l_pts.shape[0]//2, 2)]
+    return l_pts, lines_coup
+        
+def visualizer_line(vis, localizer, l_pts, lines_coup):
+    ls = o3d.geometry.LineSet()
+    ls.points = o3d.utility.Vector3dVector(l_pts.astype(np.float64))
+    ls.lines = o3d.utility.Vector2iVector(lines_coup)
+    l_colors = [[1, 0, 0] for i in range(len(lines_coup))]
+    ls.colors = o3d.utility.Vector3dVector(l_colors)
+    ls.transform(localizer.get_T_zed())
+    vis.remove_geometry('line')
+    vis.add_geometry('line', ls)
+    
 class SurfaceGPSZED:
     def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3), project_threshold=1.):
         T_world2robot = get_transformation(Rotation.from_rotvec(init_rvec).as_matrix(), init_tvec)
@@ -144,9 +194,11 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
     vis.show_axes = config['vis_show_axes']
     vis.show_ground = config['vis_show_ground']
     vis.show_settings = config['vis_show_settings']
+    vis.line_width = 5
+    ls = o3d.geometry.LineSet()
     app.add_window(vis)
     
-    ls_detector = cv.ximgproc.createFastLineDetector(length_threshold=50, canny_th1=10, canny_th2=200)
+    ls_detector = cv.ximgproc.createFastLineDetector(length_threshold=50, canny_th1=1, canny_th2=10)
 
     # Prepare the surface
     surface = None
@@ -178,7 +230,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
             break
         zed_color, _, zed_depth = zed.get_images()
         zed_state, zed_qxyzw, zed_tvec = zed.get_tracking_pose()
-        xyz = zed.get_xyz()
+        
 
         # Perform the localizer
         if zed_state:
@@ -188,52 +240,18 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
         # Show the 3D information
         if not vis.is_visible:
             break
-        if config['vis_show_pcd']:
-            zed_xyz = zed.get_xyz().reshape(-1,3).astype(np.float64)
-            zed_rgb = (zed_color / 255).reshape(-1,3).astype(np.float64)
-            valid = zed_xyz[:,-1] > 0
-            zed_xyz = zed_xyz[valid,:]
-            zed_rgb = zed_rgb[valid,:]
-            zed_pcd = o3d.geometry.PointCloud()
-            zed_pcd.points = o3d.utility.Vector3dVector(zed_xyz)
-            zed_pcd.colors = o3d.utility.Vector3dVector(zed_rgb)
-            zed_pcd.transform(localizer.get_T_zed())
-            vis.remove_geometry('PointCloud')
-            vis.add_geometry('PointCloud', zed_pcd)
-        if robot_vis is not None:
-            robot_copy = copy.deepcopy(robot_vis)
-            robot_copy.transform(localizer.get_T_robot())
-            vis.remove_geometry('Robot')
-            vis.add_geometry('Robot', robot_copy)
-            
-        gray = cv.cvtColor(zed_color, cv.COLOR_BGR2GRAY)
-        lines = ls_detector.detect(gray)
-        l_pts = np.empty((0,3))
-        
-        # Visualize line segments
-        lines = lines.astype(int).squeeze()
-        
-        for li in lines:
-            l_pts = np.vstack((l_pts, xyz[li[1], li[0], :], xyz[li[3], li[2], :]))
-            
-        lines_coup = [ [i, i+1] for i in range(0, l_pts.shape[0]//2, 2)]
-         
-        ls = o3d.geometry.LineSet()
-        ls.points = o3d.utility.Vector3dVector(l_pts.astype(np.float64))
-        ls.lines = o3d.utility.Vector2iVector(lines_coup)
-        l_colors = [[1, 0, 0] for i in range(len(lines_coup))]
-        ls.colors = o3d.utility.Vector3dVector(l_colors)
-        print(np.asarray(ls.colors).shape)
-        ls.transform(localizer.get_T_zed())
-        
-        vis.remove_geometry('line')
-        vis.add_geometry('line', ls)
+        ###
+        with ThreadPoolExecutor() as executor:
+            executor.submit(visualize_pcd, vis, zed, config, zed_color, localizer, robot_vis, zed_vis)
+            line_data = executor.submit(process_line, zed, zed_color)
+            l_pts, lines_coup = line_data.result()
+            executor.submit(visualizer_line, vis, localizer, l_pts, lines_coup)
+            executor.shutdown()
 
-        zed_copy = copy.deepcopy(zed_vis)
-        zed_copy.transform(localizer.get_T_zed())
-        vis.remove_geometry('ZED-Left')
-        vis.add_geometry('ZED-Left', zed_copy)
+        
         vis.post_redraw()
+        
+        print(zed.camera.get_current_fps())
 
         # Show the images
         merge = zed_color
