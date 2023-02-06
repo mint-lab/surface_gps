@@ -1,27 +1,25 @@
 import cv2 as cv
-import zed
+from sensorpy.zed import ZED
+import opencx as cx
+from LID_test import LID
 
 if __name__ == '__main__':
-    svo_file = 'file_path/file_name.svo'
-    svo_realtime = False
+    svo_file = 'data/220902_Gym/short.svo'
+    svo_realtime = True
     
-    cam = zed.ZED()
-    cam.load_svo(svo_file, svo_realtime)
-
-    # Grab images and show them
-    ls_detector = cv.line_descriptor.LSDDetector.createLSDDetector() # Note) createLSDDetectorWithParams()
+    cam = ZED()
+    cam.open(svo_file=svo_file, svo_realtime=svo_realtime)
+    
+    lid = LID()
+    # output = cx.VideoWriter('220902_Gym_LSD.avi')
     
     while True:
         if cam.grab():
             # Grab an image
             color, _, _ = cam.get_images()
 
-            # Detect line segments
-            gray = cv.cvtColor(color, cv.COLOR_BGR2GRAY)
-            lines = ls_detector.detect(gray, 2, 1) # Arguments) image, scale, numOctaves
-
-            # Visualize line segments
-            result = cv.line_descriptor.drawKeylines(color, lines, color=(0, 0, 255))
+            result = lid.lsd(color)
+            # output.write(result)
             cv.imshow('ZED: Line Segment Detection', result)
 
         key = cv.waitKey(1)
@@ -31,5 +29,6 @@ if __name__ == '__main__':
             break
 
     # Deallocate resources
+    # output.release()
     cv.destroyAllWindows()
     cam.close()
