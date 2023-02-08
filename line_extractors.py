@@ -40,6 +40,14 @@ class FLDExtractor:
         lines = self.extractor.detect(image)
         return lines.reshape(-1, 4)
 
+def get_line_extractor(name, options={}):
+    name_ = name.lower()
+    if name_ == 'lsd' or name_ == 'lsdextractor':
+        return LSDExtractor(**options)
+    if name_ == 'fld' or name_ == 'fldextractor':
+        return FLDExtractor(**options)
+    return None
+
 def draw_line_segments(image, lines, color=(0, 0, 255), thickness=1):
     pair_list = lines.astype(np.int32)
     for pair in pair_list:
@@ -51,15 +59,14 @@ if __name__ == '__main__':
     # Test line segment extractors
     image = cv.imread('data/220720_M327/calib.png')
 
-    extractors = [
-        ('LSD', LSDExtractor()),
-        ('FLD', FLDExtractor()),
-    ]
-    for name, extractor in extractors:
+    extractors = ['LSD', 'FLD']
+    for name in extractors:
         img = image.copy()
-        lines = extractor.extract(img)
-        draw_line_segments(img, lines)
-        cv.imshow(name, img)
+        extractor = get_line_extractor(name)
+        if extractor is not None:
+            lines = extractor.extract(img)
+            draw_line_segments(img, lines)
+            cv.imshow(name, img)
 
     cv.waitKey(0)
     cv.destroyAllWindows()

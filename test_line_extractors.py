@@ -1,15 +1,10 @@
-import numpy as np
 import cv2 as cv
 import opencx as cx
-from line_segment_extractors import LSDExtractor, FLDExtractor, draw_line_segments
+from line_extractors import get_line_extractor, draw_line_segments
 from sensorpy.zed import ZED
 import time
 
-if __name__ == '__main__':
-    svo_file = 'data/220902_Gym/short.svo'
-    svo_realtime = False
-    output_file = ''
-
+def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realtime=False, output_file=''):
     # Open input and output videos
     cam = ZED()
     cam.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode='performance')
@@ -17,7 +12,7 @@ if __name__ == '__main__':
         output = cx.VideoWriter(output_file)
 
     # Run the line segment extractor
-    extractor = FLDExtractor()
+    extractor = get_line_extractor(line_name, **line_options)
     while True:
         # Grab an image
         if not cam.grab():
@@ -30,7 +25,7 @@ if __name__ == '__main__':
         elapse = time.time() - elapse
 
         # Visualize its result
-        result = cv.cvtColor(cv.cvtColor(color, cv.COLOR_BGR2GRAY), cv.COLOR_GRAY2BGR) # To highlight lines
+        result = cv.cvtColor(cv.cvtColor(color, cv.COLOR_BGR2GRAY), cv.COLOR_GRAY2BGR) # Make the image gray to highlight lines
         draw_line_segments(result, lines)
         cx.putText(result, f'{1/elapse:.1f} Hz', (10, 10))
         cv.imshow('test_line_segment_extractors', result)
@@ -47,3 +42,8 @@ if __name__ == '__main__':
     if output_file:
         output.release()
     cam.close()
+
+
+
+if __name__ == '__main__':
+    test_line_extractor(svo_file = 'data/220902_Gym/short.svo')
