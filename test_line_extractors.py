@@ -6,8 +6,8 @@ import time
 
 def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realtime=False, output_file=''):
     # Open input and output videos
-    cam = ZED()
-    cam.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode='performance')
+    zed = ZED()
+    zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode='performance')
     if output_file:
         output = cx.VideoWriter(output_file)
 
@@ -15,9 +15,9 @@ def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realt
     extractor = get_line_extractor(line_name, **line_options)
     while True:
         # Grab an image
-        if not cam.grab():
+        if not zed.grab():
             break
-        color, _, _ = cam.get_images()
+        color, _, _ = zed.get_images()
 
         # Run the extractor
         elapse = time.time()
@@ -28,7 +28,7 @@ def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realt
         result = cv.cvtColor(cv.cvtColor(color, cv.COLOR_BGR2GRAY), cv.COLOR_GRAY2BGR) # Make the image gray to highlight lines
         draw_line_segments(result, lines)
         cx.putText(result, f'{1/elapse:.1f} Hz', (10, 10))
-        cv.imshow('test_line_segment_extractors', result)
+        cv.imshow('test_line_extractors', result)
         if output_file:
             output.write(result)
 
@@ -41,7 +41,7 @@ def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realt
     cv.destroyAllWindows()
     if output_file:
         output.release()
-    cam.close()
+    zed.close()
 
 
 
