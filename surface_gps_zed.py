@@ -6,6 +6,7 @@ import open3d as o3d
 from sensorpy.zed import ZED, print_zed_info
 import opencx as cx
 from concurrent.futures import ThreadPoolExecutor
+from line_extractors import get_line_extractor, draw_line_segments
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -37,11 +38,10 @@ def visualize_pcd(vis, zed, config, zed_color, localizer, robot_vis, zed_vis):
     vis.remove_geometry('ZED-Left')
     vis.add_geometry('ZED-Left', zed_copy)
         
-def process_line(vis, zed, localizer, zed_color):
+def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={}):
     xyz = zed.get_xyz()
-    ls_detector = cv.ximgproc.createFastLineDetector(length_threshold=50, canny_th1=1, canny_th2=10)
-    gray = cv.cvtColor(zed_color, cv.COLOR_BGR2GRAY)
-    lines = ls_detector.detect(gray)
+    extractor = get_line_extractor(line_name, **line_options)
+    lines = extractor.extract(zed_color)
     l_pts = np.empty((0,3))
     
     # Visualize line segments
@@ -291,7 +291,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
             if config['vis_show_plane']:
                 executor.submit(process_plane, vis, zed, localizer, 0.1)
             if config['vis_show_line']:
-                executor.submit(process_line, vis, zed, localizer, zed_color)
+                executor.submit(process_line, vis, zed, localizer, zed_color, line_name='lsd')
         vis.post_redraw()
         
         print(zed.camera.get_current_fps())
