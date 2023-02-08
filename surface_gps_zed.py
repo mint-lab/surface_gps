@@ -64,14 +64,11 @@ def process_plane(vis, zed, localizer, thres):
     n_y = 4
     height = zed.camera.get_camera_information().camera_resolution.height
     width = zed.camera.get_camera_information().camera_resolution.width
-    coord_arr = np.empty((0,2))
     x_p = np.linspace(0, width, n_x+2).astype(np.int32)[1:-1]
     y_p = np.linspace(0, height, n_y+2).astype(np.int32)[1:-1]
-    output2 = list(map(lambda y:np.array((list(map(lambda x:[y,x], x_p)))), y_p))
-    
-    for ar in output2:
-        coord_arr = np.vstack((coord_arr, ar))
-    coord_arr = coord_arr.astype(np.int32)
+    xx, yy = np.meshgrid(x_p, y_p)
+    yx = np.dstack((yy, xx))
+    coord_arr = yx.reshape(-1, 2)
     
     xyz = zed.get_xyz()
     pts_list = np.array(list(map(lambda x: xyz[x[0], x[1], :], coord_arr)))
