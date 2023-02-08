@@ -19,5 +19,9 @@
     "vis_cam_eye"       : [ 0.4, 2.5, -0.5 ],
     "vis_show_pcd"      : false,
     "vis_show_ground"   : false,
-    "vis_show_setting"  : false
+    "vis_show_setting"  : false,
+    "vis_show_line"     : true,
+    "vis_show_plane"    : true,
+    "vis_show_line"     : true,
+    "vis_show_plane"    : true
 }
