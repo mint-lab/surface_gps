@@ -41,12 +41,10 @@ def visualize_pcd(vis, zed, config, zed_color, localizer, robot_vis, zed_vis):
 def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={}):
     xyz = zed.get_xyz()
     extractor = get_line_extractor(line_name, **line_options)
-    lines = extractor.extract(zed_color)
+    lines = extractor.extract(zed_color).astype(np.int32)
     l_pts = np.empty((0,3))
     
     # Visualize line segments
-    lines = lines.astype(int).squeeze()
-    
     for li in lines:
         l_pts = np.vstack((l_pts, xyz[li[1], li[0], :], xyz[li[3], li[2], :]))
         
@@ -62,36 +60,45 @@ def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={
     vis.add_geometry('line', ls)
     
 def process_plane(vis, zed, localizer, thres):
-    coord_list = np.array([[144, 160], [144, 320], [144, 480], [144, 540], [144, 800], [144, 960], [144, 1120],
-                           [288, 160], [288, 320], [288, 480], [288, 540], [288, 800], [288, 960], [288, 1120],
-                           [432, 160], [432, 320], [432, 480], [432, 540], [432, 800], [432, 960], [432, 1120],
-                           [576, 160], [576, 320], [576, 480], [576, 540], [576, 800], [576, 960], [576, 1120]])
+    n_x = 7
+    n_y = 4
+    height = zed.camera.get_camera_information().camera_resolution.height
+    width = zed.camera.get_camera_information().camera_resolution.width
+    coord_arr = np.empty((0,2))
+    x_p = np.linspace(0, width, n_x+2).astype(np.int32)[1:-1]
+    y_p = np.linspace(0, height, n_y+2).astype(np.int32)[1:-1]
+    output2 = list(map(lambda y:np.array((list(map(lambda x:[y,x], x_p)))), y_p))
+    
+    for ar in output2:
+        coord_arr = np.vstack((coord_arr, ar))
+    coord_arr = coord_arr.astype(np.int32)
+    
     xyz = zed.get_xyz()
-    pts_list = np.array(list(map(lambda x: xyz[x[0], x[1], :], coord_list)))
+    pts_list = np.array(list(map(lambda x: xyz[x[0], x[1], :], coord_arr)))
     resi_index = np.isfinite(pts_list).any(axis=1)
-    coord_list = coord_list[resi_index]
+    coord_arr = coord_arr[resi_index]
     pts_list = pts_list[resi_index]
     
     eq_arr = np.empty((0,4))
     d_arr = np.zeros((4,4))       
     
-    for i in range(coord_list.shape[0]):
+    for i in range(coord_arr.shape[0]):
         vis.remove_geometry('mesh'+str(i))
         
-    while(coord_list.shape[0]>0):
+    while(coord_arr.shape[0]>0):
         d_arr = []
-        zed.coord = coord_list[0]
+        zed.coord = coord_arr[0]
         find_plane_status = zed.camera.find_plane_at_hit(zed.coord, zed.plane)
         if str(find_plane_status) == 'SUCCESS':
             eq_v = zed.plane.get_plane_equation()
-            for it in range(coord_list.shape[0]):
+            for it in range(coord_arr.shape[0]):
                 d = abs(np.sum(pts_list[it]*eq_v[:3])+eq_v[3])
                 d_arr = np.append(d_arr, d)
                 if d_arr[0]>thres:
                     break
                 
             if d_arr[0]>thres:
-                coord_list = coord_list[1:]
+                coord_arr = coord_arr[1:]
                 pts_list = pts_list[1:]
 
             else:
@@ -101,10 +108,10 @@ def process_plane(vis, zed, localizer, thres):
                 mesh.transform(localizer.get_T_zed())
                 vis.add_geometry('mesh'+str(eq_arr.shape[0]), mesh)
                 eq_arr = np.vstack((eq_arr, eq_v))
-                coord_list = coord_list[d_arr>d_arr[0]*10]
+                coord_arr = coord_arr[d_arr>d_arr[0]*10]
                 pts_list = pts_list[d_arr>d_arr[0]*10]
         else:
-            coord_list = coord_list[1:]
+            coord_arr = coord_arr[1:]
             pts_list = pts_list[1:]
             
     return eq_arr
