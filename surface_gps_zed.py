@@ -59,8 +59,8 @@ def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={
     vis.remove_geometry('line')
     vis.add_geometry('line', ls)
     
-def process_plane(vis, zed, localizer, thres):
-    n_x = 7
+def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1):
+    n_x = 8
     n_y = 4
     height = zed.camera.get_camera_information().camera_resolution.height
     width = zed.camera.get_camera_information().camera_resolution.width
@@ -76,41 +76,23 @@ def process_plane(vis, zed, localizer, thres):
     coord_arr = coord_arr[resi_index]
     pts_list = pts_list[resi_index]
     
-    eq_arr = np.empty((0,4))
-    d_arr = np.zeros((4,4))       
+    eq_arr = np.empty((0,4))     
+    c_arr = np.empty((0,3))
     
     for i in range(coord_arr.shape[0]):
-        vis.remove_geometry('mesh'+str(i))
-        
-    while(coord_arr.shape[0]>0):
-        d_arr = []
-        zed.coord = coord_arr[0]
+        vis.remove_geometry('mesh'+str(i))   
+    for it in coord_arr:
+        zed.coord = it
         find_plane_status = zed.camera.find_plane_at_hit(zed.coord, zed.plane)
-        if str(find_plane_status) == 'SUCCESS':
-            eq_v = zed.plane.get_plane_equation()
-            for it in range(coord_arr.shape[0]):
-                d = abs(np.sum(pts_list[it]*eq_v[:3])+eq_v[3])
-                d_arr = np.append(d_arr, d)
-                if d_arr[0]>thres:
-                    break
-                
-            if d_arr[0]>thres:
-                coord_arr = coord_arr[1:]
-                pts_list = pts_list[1:]
-
-            else:
+        if str(find_plane_status) == 'SUCCESS' and np.max(zed.plane.get_extents())> length_threshold and np.prod(zed.plane.get_extents())>area_threshold:
+            if (c_arr==np.round(zed.plane.get_center(),2)).any(axis=1).any() == False:
+                c_arr = np.vstack((c_arr, np.round(zed.plane.get_center(),2)))
+                eq_arr = np.vstack((eq_arr, zed.plane.get_plane_equation()))
                 zed.mesh = zed.plane.extract_mesh()
                 mesh = o3d.geometry.TriangleMesh(vertices=o3d.utility.Vector3dVector(zed.mesh.vertices.astype(np.float64)), triangles=o3d.utility.Vector3iVector(zed.mesh.triangles.astype(np.int32)))
-                mesh.paint_uniform_color(np.abs(eq_v[:3]))
+                mesh.paint_uniform_color(np.abs(zed.plane.get_plane_equation()[:3]))
                 mesh.transform(localizer.get_T_zed())
                 vis.add_geometry('mesh'+str(eq_arr.shape[0]), mesh)
-                eq_arr = np.vstack((eq_arr, eq_v))
-                coord_arr = coord_arr[d_arr>d_arr[0]*10]
-                pts_list = pts_list[d_arr>d_arr[0]*10]
-        else:
-            coord_arr = coord_arr[1:]
-            pts_list = pts_list[1:]
-            
     return eq_arr
 
 class SurfaceGPSZED:
@@ -201,6 +183,8 @@ def load_config(config_file):
         'vis_show_axes'     : True,
         'vis_show_ground'   : True,
         'vis_show_settings' : True,
+        'vis_show_plane'    : True,
+        'vis_show_line'     : True
     }
 
     # Update the configuration from the given file
