@@ -2,10 +2,11 @@ import numpy as np
 import cv2 as cv
 import opencx as cx
 from sensorpy.zed import ZED, sl
+import open3d as o3d
 import time
 
 class ZEDPlaneExtractor:
-    def __init__(self, zed, length_threshold=0.1, area_threshold=0.1, sample_x_step=128, sample_y_step=128):
+    def __init__(self, zed, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
         self.zed = zed
         self.zed_planes = []
         self.length_threshold = length_threshold
@@ -15,7 +16,9 @@ class ZEDPlaneExtractor:
         zed_info = zed.camera.get_camera_information()
         self.zed_width = zed_info.camera_resolution.width
         self.zed_height = zed_info.camera_resolution.height
-        xx, yy = np.meshgrid(range(0, self.zed_width, sample_x_step), range(0, self.zed_height, sample_y_step))
+        x_p = np.linspace(0, self.zed_width, x_n+2).astype(np.int32)[1:-1]
+        y_p = np.linspace(0, self.zed_height, y_n+2).astype(np.int32)[1:-1]
+        xx, yy = np.meshgrid(x_p, y_p)
         yx = np.dstack((yy, xx))
         self.sample_pts = yx.reshape(-1, 2).astype(np.float32)
 
@@ -25,8 +28,9 @@ class ZEDPlaneExtractor:
                                [     0, cam.fy, cam.cy],
                                [     0,      0,      1]])
 
-    def extract(self, depth=None):
+    def extract(self, depth=None, get_meshs=False):
         self.zed_planes = []
+        self.zed_meshs = []
 
         plane_eqs = []
         for pt in self.sample_pts:
@@ -36,6 +40,7 @@ class ZEDPlaneExtractor:
                     break
             else:
                 plane = sl.Plane()
+                mesh = sl.Mesh()
                 if self.zed.camera.find_plane_at_hit(pt, plane) == sl.ERROR_CODE.SUCCESS:
                     # Skip if 'plane' has too small size
                     if np.max(plane.get_extents()) < self.length_threshold:
@@ -50,7 +55,15 @@ class ZEDPlaneExtractor:
                     bounds_px = bounds_px / bounds_px[:,-1].reshape(-1, 1)
                     self.zed_planes.append((plane, bounds_px[:,0:2].astype(np.float32)))
                     plane_eqs.append(plane.get_plane_equation())
-
+                    # Get 'mesh'
+                    if get_meshs:
+                        mesh = plane.extract_mesh()
+                        mesh = o3d.geometry.TriangleMesh(vertices=o3d.utility.Vector3dVector(mesh.vertices.astype(np.float64)), triangles=o3d.utility.Vector3iVector(mesh.triangles.astype(np.int32)))
+                        mesh.paint_uniform_color(np.abs(plane.get_plane_equation()[:3]))
+                        self.zed_meshs.append(mesh)
+        
+        if get_meshs:
+            return np.vstack(plane_eqs), self.zed_meshs
         return np.vstack(plane_eqs)
 
     def get_normal_image(self, depth=None):
@@ -103,4 +116,4 @@ def test_plane_extractor(svo_file='', svo_realtime=False, output_file=''):
 
 
 if __name__ == '__main__':
-    test_plane_extractor('data/220902_Gym/short.svo')
+    test_plane_extractor('data/230116_M327/auto_v.svo')
