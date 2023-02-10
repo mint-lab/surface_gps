@@ -41,6 +41,10 @@ class ZEDPlaneExtractor:
                 if str(find_plane_status) == 'SUCCESS' and np.max(plane.get_extents())> self.length_threshold and np.prod(plane.get_extents())>self.area_threshold:
                     if (center_arrs==np.round(plane.get_center(),2)).any(axis=1).any() == False:
                         center_arrs = np.vstack((center_arrs, np.round(plane.get_center(),2)))
+                        bounds_m = plane.get_bounds()
+                        bounds_px = bounds_m @ self.zed_K.T
+                        bounds_px = bounds_px / bounds_px[:,-1].reshape(-1, 1)
+                        self.zed_planes.append((plane, bounds_px[:,0:2].astype(np.float32)))
                         plane_eqs.append(plane.get_plane_equation())
                         if get_meshs:
                             mesh = plane.extract_mesh()
