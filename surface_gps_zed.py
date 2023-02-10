@@ -7,6 +7,7 @@ from sensorpy.zed import ZED, print_zed_info
 import opencx as cx
 from concurrent.futures import ThreadPoolExecutor
 from line_extractors import get_line_extractor, draw_line_segments
+from plane_extractor_zed import ZEDPlaneExtractor
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -59,41 +60,15 @@ def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={
     vis.remove_geometry('line')
     vis.add_geometry('line', ls)
     
-def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1):
-    n_x = 8
-    n_y = 4
-    height = zed.camera.get_camera_information().camera_resolution.height
-    width = zed.camera.get_camera_information().camera_resolution.width
-    x_p = np.linspace(0, width, n_x+2).astype(np.int32)[1:-1]
-    y_p = np.linspace(0, height, n_y+2).astype(np.int32)[1:-1]
-    xx, yy = np.meshgrid(x_p, y_p)
-    yx = np.dstack((yy, xx))
-    coord_arr = yx.reshape(-1, 2)
-    
-    xyz = zed.get_xyz()
-    pts_list = np.array(list(map(lambda x: xyz[x[0], x[1], :], coord_arr)))
-    resi_index = np.isfinite(pts_list).any(axis=1)
-    coord_arr = coord_arr[resi_index]
-    pts_list = pts_list[resi_index]
-    
-    eq_arr = np.empty((0,4))     
-    c_arr = np.empty((0,3))
-    
-    for i in range(coord_arr.shape[0]):
-        vis.remove_geometry('mesh'+str(i))   
-    for it in coord_arr:
-        zed.coord = it
-        find_plane_status = zed.camera.find_plane_at_hit(zed.coord, zed.plane)
-        if str(find_plane_status) == 'SUCCESS' and np.max(zed.plane.get_extents())> length_threshold and np.prod(zed.plane.get_extents())>area_threshold:
-            if (c_arr==np.round(zed.plane.get_center(),2)).any(axis=1).any() == False:
-                c_arr = np.vstack((c_arr, np.round(zed.plane.get_center(),2)))
-                eq_arr = np.vstack((eq_arr, zed.plane.get_plane_equation()))
-                zed.mesh = zed.plane.extract_mesh()
-                mesh = o3d.geometry.TriangleMesh(vertices=o3d.utility.Vector3dVector(zed.mesh.vertices.astype(np.float64)), triangles=o3d.utility.Vector3iVector(zed.mesh.triangles.astype(np.int32)))
-                mesh.paint_uniform_color(np.abs(zed.plane.get_plane_equation()[:3]))
-                mesh.transform(localizer.get_T_zed())
-                vis.add_geometry('mesh'+str(eq_arr.shape[0]), mesh)
-    return eq_arr
+def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
+    extractor = ZEDPlaneExtractor(zed)
+    planes, meshs = extractor.extract(get_meshs=True)
+    for i in range(x_n*y_n):
+        vis.remove_geometry('mesh'+str(i))
+    for idx,mesh in enumerate(meshs):
+        mesh.transform(localizer.get_T_zed())
+        vis.add_geometry('mesh'+str(idx), mesh)
+    return planes
 
 class SurfaceGPSZED:
     def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3), project_threshold=1.):
