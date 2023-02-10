@@ -33,35 +33,20 @@ class ZEDPlaneExtractor:
         self.zed_meshs = []
 
         plane_eqs = []
+        center_arrs = np.empty((0,3))
         for pt in self.sample_pts:
-            # Skip if 'pt' is inside of the previously found planes
-            for _, polygon2d in self.zed_planes:
-                if cv.pointPolygonTest(polygon2d, pt, False) > 0:
-                    break
-            else:
                 plane = sl.Plane()
                 mesh = sl.Mesh()
-                if self.zed.camera.find_plane_at_hit(pt, plane) == sl.ERROR_CODE.SUCCESS:
-                    # Skip if 'plane' has too small size
-                    if np.max(plane.get_extents()) < self.length_threshold:
-                        continue
-                    # Skip if 'plane' has too small area
-                    if np.prod(plane.get_extents()) < self.area_threshold:
-                        continue
-
-                    # Keep 'plane'
-                    bounds_m = plane.get_bounds()
-                    bounds_px = bounds_m @ self.zed_K.T
-                    bounds_px = bounds_px / bounds_px[:,-1].reshape(-1, 1)
-                    self.zed_planes.append((plane, bounds_px[:,0:2].astype(np.float32)))
-                    plane_eqs.append(plane.get_plane_equation())
-                    # Get 'mesh'
-                    if get_meshs:
-                        mesh = plane.extract_mesh()
-                        mesh = o3d.geometry.TriangleMesh(vertices=o3d.utility.Vector3dVector(mesh.vertices.astype(np.float64)), triangles=o3d.utility.Vector3iVector(mesh.triangles.astype(np.int32)))
-                        mesh.paint_uniform_color(np.abs(plane.get_plane_equation()[:3]))
-                        self.zed_meshs.append(mesh)
-        
+                find_plane_status = self.zed.camera.find_plane_at_hit(pt, plane)
+                if str(find_plane_status) == 'SUCCESS' and np.max(plane.get_extents())> self.length_threshold and np.prod(plane.get_extents())>self.area_threshold:
+                    if (center_arrs==np.round(plane.get_center(),2)).any(axis=1).any() == False:
+                        center_arrs = np.vstack((center_arrs, np.round(plane.get_center(),2)))
+                        plane_eqs.append(plane.get_plane_equation())
+                        if get_meshs:
+                            mesh = plane.extract_mesh()
+                            mesh = o3d.geometry.TriangleMesh(vertices=o3d.utility.Vector3dVector(mesh.vertices.astype(np.float64)), triangles=o3d.utility.Vector3iVector(mesh.triangles.astype(np.int32)))
+                            mesh.paint_uniform_color(np.abs(plane.get_plane_equation()[:3]))
+                            self.zed_meshs.append(mesh)
         if get_meshs:
             return np.vstack(plane_eqs), self.zed_meshs
         return np.vstack(plane_eqs)
