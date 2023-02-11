@@ -106,7 +106,7 @@ class RansacExtractor:
                     s_data = data[random.sample(range(0, np.shape(data)[0]), np.shape(data)[0]//(10**(3-it))),:]
                 else:
                     s_data = data
-                coeff_arr = self.count_points(s_data, self.length_threshold, coeff_arr, r_list[it])
+                coeff_arr = self.count_points(s_data, coeff_arr, r_list[it])
         
             A, B, C, D = coeff_arr[0]
             x = data[:,0]
