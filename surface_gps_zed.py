@@ -7,7 +7,7 @@ from sensorpy.zed import ZED, print_zed_info
 import opencx as cx
 from concurrent.futures import ThreadPoolExecutor
 from line_extractors import get_line_extractor, draw_line_segments
-from plane_extractor_zed import ZEDPlaneExtractor
+from plane_extractor_zed import ZEDPlaneExtractor, RansacExtractor
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -60,10 +60,21 @@ def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={
     vis.remove_geometry('line')
     vis.add_geometry('line', ls)
     
-def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
-    extractor = ZEDPlaneExtractor(zed)
-    planes, meshs = extractor.extract(get_meshs=True)
-    for i in range(x_n*y_n):
+# def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
+#     extractor = ZEDPlaneExtractor(zed)
+#     planes, meshs = extractor.extract(get_meshs=True)
+#     for i in range(x_n*y_n):
+#         vis.remove_geometry('mesh'+str(i))
+#     for idx,mesh in enumerate(meshs):
+#         mesh.transform(localizer.get_T_zed())
+#         vis.add_geometry('mesh'+str(idx), mesh)
+#     return planes
+
+def process_plane(vis, zed, localizer, length_threshold = 0.1, plane_candidate_n = 1000, plane_n = 3):
+    extractor = RansacExtractor(length_threshold = length_threshold, plane_candidate_n=plane_candidate_n, plane_n=plane_n)
+    xyz = zed.get_xyz()
+    planes, meshs = extractor.find_plane(xyz.reshape(-1,3))
+    for i in range(plane_n):
         vis.remove_geometry('mesh'+str(i))
     for idx,mesh in enumerate(meshs):
         mesh.transform(localizer.get_T_zed())
@@ -251,8 +262,10 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
         # Prepare for MultiThreading
         with ThreadPoolExecutor() as executor:
             executor.submit(visualize_pcd, vis, zed, config, zed_color, localizer, robot_vis, zed_vis)
+            # if config['vis_show_plane']:
+            #     executor.submit(process_plane, vis, zed, localizer, 0.1)
             if config['vis_show_plane']:
-                executor.submit(process_plane, vis, zed, localizer, 0.1)
+                executor.submit(process_plane, vis, zed, localizer, 0.02, 1000, 3)
             if config['vis_show_line']:
                 executor.submit(process_line, vis, zed, localizer, zed_color, line_name='lsd')
         vis.post_redraw()
