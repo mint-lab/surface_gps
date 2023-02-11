@@ -25,7 +25,7 @@ zed.open(svo_file='data/230116_M327/auto_v.svo', min_depth=0.2, max_depth = 20)
 while zed.is_open():
     if zed.grab():
         s_time = time()
-        d_v = zed.get_depth()*1000
+        d_v = zed.get_depth()*255
         color,_,_ = zed.get_images()
         norm_dv = d_v-d_v.min()
         norm_dv = norm_dv/d_v.max()
