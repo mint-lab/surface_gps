@@ -7,7 +7,8 @@ from sensorpy.zed import ZED, print_zed_info
 import opencx as cx
 from concurrent.futures import ThreadPoolExecutor
 from line_extractors import get_line_extractor, draw_line_segments
-from plane_extractor_zed import ZEDPlaneExtractor, RansacExtractor
+from plane_extractor_zed import ZEDMultiPlane, ZEDSinglePlane
+from plane_extractor_ransac import RANSACMultiPlane
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -60,26 +61,27 @@ def process_line(vis, zed, localizer, zed_color, line_name='FLD', line_options={
     vis.remove_geometry('line')
     vis.add_geometry('line', ls)
     
-# def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
-#     extractor = ZEDPlaneExtractor(zed)
-#     planes, meshs = extractor.extract(get_meshs=True)
-#     for i in range(x_n*y_n):
-#         vis.remove_geometry('mesh'+str(i))
-#     for idx,mesh in enumerate(meshs):
-#         mesh.transform(localizer.get_T_zed())
-#         vis.add_geometry('mesh'+str(idx), mesh)
-#     return planes
-
-def process_plane(vis, zed, localizer, length_threshold = 0.1, plane_candidate_n = 1000, plane_n = 3):
-    extractor = RansacExtractor(length_threshold = length_threshold, plane_candidate_n=plane_candidate_n, plane_n=plane_n)
-    xyz = zed.get_xyz()
-    planes, meshs = extractor.find_plane(xyz.reshape(-1,3))
-    for i in range(plane_n):
+def process_plane(vis, zed, localizer, thres, length_threshold=0.1, area_threshold=0.1, x_n = 8, y_n = 4):
+    extractor = ZEDMultiPlane(zed)
+    planes = extractor.extract()
+    meshs = extractor.get_plane_mesh()
+    for i in range(x_n*y_n):
         vis.remove_geometry('mesh'+str(i))
     for idx,mesh in enumerate(meshs):
         mesh.transform(localizer.get_T_zed())
         vis.add_geometry('mesh'+str(idx), mesh)
     return planes
+
+# def process_plane(vis, zed, localizer, length_threshold = 0.1, plane_candidate_n = 1000, plane_n = 3):
+#     extractor = RANSACMultiPlane(length_threshold = length_threshold, plane_candidate_n=plane_candidate_n, plane_n=plane_n)
+#     xyz = zed.get_xyz()
+#     planes, meshs = extractor.find_plane(xyz.reshape(-1,3))
+#     for i in range(plane_n):
+#         vis.remove_geometry('mesh'+str(i))
+#     for idx,mesh in enumerate(meshs):
+#         mesh.transform(localizer.get_T_zed())
+#         vis.add_geometry('mesh'+str(idx), mesh)
+#     return planes
 
 class SurfaceGPSZED:
     def __init__(self, init_rvec=np.zeros(3), init_tvec=np.zeros(3), zed_K=np.eye(3), zed_distort=np.zeros(5), zed_rvec=np.zeros(3), zed_tvec=np.zeros(3), project_threshold=1.):
