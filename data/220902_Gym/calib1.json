@@ -1,0 +1,15 @@
+{
+    "cam_file": "data/220902_Gym/calib1.png",
+    "cam_K": [[524.8734741210938, 0, 637.4459838867188],
+              [0, 524.8734741210938, 363.0462646484375],
+              [0, 0, 1]],
+    "cam_dist": [[0.0, 0.0, 0.0, 0.0, 0.0]],
+    "chess_pattern_cols": 9,
+    "chess_pattern_rows": 6,
+    "chess_cellsize": 0.03,
+    "offset_front": 0.646,
+    "offset_height": 0.201,
+    "calib_option": ["CALIB_USE_INTRINSIC_GUESS", "CALIB_FIX_FOCAL_LENGTH", "CALIB_FIX_PRINCIPAL_POINT", "CALIB_ZERO_TANGENT_DIST", "CALIB_FIX_K1", "CALIB_FIX_K2", "CALIB_FIX_K3"],
+    "calib_output": "data/220902_Gym/calib1_result.json",
+    "save_cam_pose": true
+}

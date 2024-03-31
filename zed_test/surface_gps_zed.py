@@ -3,12 +3,16 @@ from scipy.spatial.transform import Rotation
 import json, copy
 import cv2 as cv
 import open3d as o3d
-from sensorpy.zed import ZED, print_zed_info
 import opencx as cx
 from concurrent.futures import ThreadPoolExecutor
 from line_extractors import get_line_extractor, draw_line_segments
 from plane_extractor_zed import ZEDMultiPlane, ZEDSinglePlane
 from plane_extractor_ransac import RANSACMultiPlane
+import os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from sensorpy.zed import ZED
+
+# max_depth 추가
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -198,10 +202,8 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
 
     # Open the ZED camera
     zed = ZED()
-    zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode=config['zed_depth_mode'], min_depth=0.2, max_depth=20)
+    print(zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode=config['zed_depth_mode'], min_depth=0.2, max_depth=20))
     zed.start_tracking()
-    if config['zed_print_info']:
-        print_zed_info(zed)
 
     # Prepare the image viewer
     win_title = 'SurfaceGPS Tester'
@@ -300,15 +302,7 @@ def test_localizer(config_file='', svo_file='', svo_realtime=True):
 
 
 if __name__ == '__main__':
-    # test_localizer('config_220720_M327.json', svo_file='data/220720_M327/short.svo')
+    test_localizer('config_220720_M327.json', svo_file='../data/220720_M327/short.svo')
     # test_localizer('config_220720_M327.json', svo_file='data/220720_M327/long.svo')
-
-    test_localizer('config_230116_M327.json', svo_file='data/230116_M327/auto_v.svo')
-    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_o.svo')
-    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_o_speed.svo')
-    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_s.svo')
-    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_s_head.svo')
-    # test_localizer('config_230116_M327.json', svo_file='data/230116_M327/manual_z.svo')
-    # test_localizer('config_230116_M327_angle.json', svo_file='data/230116_M327/auto_rotate.svo')
 
     # test_localizer(svo_file='data/220902_Gym/short.svo')

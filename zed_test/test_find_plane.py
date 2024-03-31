@@ -105,10 +105,10 @@ def plot_planes(planes):
 if __name__ == '__main__':
     start_t = time()
     
-    with open("data_files/test_0815.pickle", "rb") as f: #load depth_value
+    with open("../data_files/test_0815.pickle", "rb") as f: #load depth_value
         depth_datas = pickle.load(f)
         
-    with open("data_files/zed_param.json", "r") as json_file:
+    with open("../data_files/zed_param.json", "r") as json_file:
         param_data = json.load(json_file)
         
     fx, fy, cx, cy = param_data['fx'], param_data['fy'], param_data['cx'], param_data['cy'] #get camera parameter

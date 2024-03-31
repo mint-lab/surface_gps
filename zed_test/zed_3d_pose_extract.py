@@ -2,7 +2,9 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import cv2 as cv
 import open3d as o3d
-from sensorpy.zed import ZED, print_zed_info
+import os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from sensorpy.zed import ZED
 
 def get_transformation(R, tvec):
     T = np.eye(4)
@@ -14,7 +16,6 @@ def extract_3d_pose(svo_file='', svo_realtime=False, depth_mode='neural', zoom=0
     zed = ZED()
     zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode=depth_mode)
     zed.start_tracking()
-    print_zed_info(zed)
 
     # Prepare the 3D viewer
     app = o3d.visualization.gui.Application.instance
@@ -81,8 +82,8 @@ def extract_3d_pose(svo_file='', svo_realtime=False, depth_mode='neural', zoom=0
 
 
 if __name__ == '__main__':
-    extract_3d_pose('data/220720_M327/short.svo')
-    # extract_3d_pose('data/220720_M327/long.svo')
-    # extract_3d_pose('data/220902_Gym/short.svo')
-    # extract_3d_pose('data/220902_Gym/long.svo')
+    extract_3d_pose('../data/220720_M327/short.svo')
+    # extract_3d_pose('../data/220720_M327/long.svo')
+    # extract_3d_pose('../data/220902_Gym/short.svo')
+    # extract_3d_pose('../data/220902_Gym/long.svo')
     # extract_3d_pose(None, output_file='')

@@ -5,7 +5,7 @@ class LSDExtractor:
     def __init__(self, scale=0.8, sigma_scale=0.6, quant=2.0, ang_th=22.5, log_eps=0, density_th=0.7, n_bins=1024,
                  runtime_scale=2, runtime_num_octave=1):
 
-        params = cv.line_descriptor.LSDParam()
+        params = cv.line_descriptor_LSDParam()
         params.scale       = scale
         params.sigma_scale = sigma_scale
         params.quant       = quant
@@ -14,7 +14,7 @@ class LSDExtractor:
         params.density_th  = density_th
         params.n_bins      = n_bins
 
-        self.extractor = cv.line_descriptor.LSDDetector.createLSDDetectorWithParams(params)
+        self.datector = cv.line_descriptor_LSDDetector(params)
         self.runtime_scale = runtime_scale
         self.runtime_num_octave = runtime_num_octave
 
@@ -25,7 +25,7 @@ class LSDExtractor:
             scale = self.runtime_scale
         if num_octaves is None:
             num_octaves = self.runtime_num_octave
-        keylines = self.extractor.detect(image, scale, num_octaves, mask)
+        keylines = self.datector.detect(image, scale, num_octaves, mask)
         lines = np.array([[l.startPointX, l.startPointY, l.endPointX, l.endPointY] for l in keylines])
         return lines
 
@@ -57,7 +57,7 @@ def draw_line_segments(image, lines, color=(0, 0, 255), thickness=1):
 
 if __name__ == '__main__':
     # Test line segment extractors
-    image = cv.imread('data/220720_M327/calib.png')
+    image = cv.imread('../data/220720_M327/calib.png')
 
     extractors = ['LSD', 'FLD']
     for name in extractors:

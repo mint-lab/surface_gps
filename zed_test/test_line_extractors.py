@@ -8,6 +8,7 @@ def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realt
     # Open input and output videos
     zed = ZED()
     zed.open(svo_file=svo_file, svo_realtime=svo_realtime, depth_mode='performance')
+    
     if output_file:
         output = cx.VideoWriter(output_file)
 
@@ -46,4 +47,4 @@ def test_line_extractor(line_name='FLD', line_options={}, svo_file='', svo_realt
 
 
 if __name__ == '__main__':
-    test_line_extractor(svo_file = 'data/220902_Gym/short.svo')
+    test_line_extractor(svo_file = '../data/220720_M327/short.svo')

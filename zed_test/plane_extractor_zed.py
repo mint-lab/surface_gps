@@ -2,8 +2,10 @@ import numpy as np
 import cv2 as cv
 import open3d as o3d
 import opencx as cx
-from sensorpy.zed import ZED, sl
 import time
+import os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+from sensorpy.zed import ZED, sl
 
 class ZEDSinglePlane:
     def __init__(self, zed, seed_pt=None):
@@ -178,6 +180,6 @@ def test_plane_extractor(svo_file='', svo_realtime=False, output_file=''):
 
 
 if __name__ == '__main__':
-    test_plane_extractor('data/220720_M327/short.svo')
+    test_plane_extractor('../data/220720_M327/short.svo')
     # test_plane_extractor('data/220902_Gym/short.svo')
     # test_plane_extractor('data/230116_M327/auto_v.svo')

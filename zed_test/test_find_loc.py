@@ -41,12 +41,12 @@ def get_3d(data):
     
 
 if __name__ == '__main__':
-    with open("data_files/test_0815.pickle", "rb") as f: #load depth_value
+    with open("../data_files/test_0815.pickle", "rb") as f: #load depth_value
         datas = pickle.load(f)
         
     show_plot = True
     
-    fx, fy, cx, cy = set_data("data_files/zed_param.json")
+    fx, fy, cx, cy = set_data("../data_files/zed_param.json")
     
     loc_data = get_3d(datas)
             

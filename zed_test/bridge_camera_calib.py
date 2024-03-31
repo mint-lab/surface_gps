@@ -3,6 +3,8 @@ import cv2 as cv
 import open3d as o3d
 import sys, glob, json
 from scipy.spatial.transform import Rotation
+import os, sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from sensorpy.camera_calib import load_config, get_2d_points
 
 def get_grid_lineset(start=(0., 0., 0.), cellsize=0.1, extend=10, color=[0.5, 0.5, 0.5]):
