@@ -1,3 +1,0 @@
-[submodule "old_src/sensorpy"]
-	path = old_src/sensorpy
-	url = https://github.com/mint-lab/sensorpy
