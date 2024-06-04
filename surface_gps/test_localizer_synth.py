@@ -45,7 +45,7 @@ if __name__ == '__main__':
     algo_ts = np.array(results['time'])
     algo_ps = np.array(results['position'])
 
-    # Plot the results on the X-Y plnae
+    # Plot the data on the X-Y plnae
     fig = plt.figure()
     plt.plot(true_ps[:, 0], true_ps[:, 1], 'g-', linewidth=line_width, label='Truth')
     plt.plot(data_ps[:, 0], data_ps[:, 1], 'b.', linewidth=line_width, label='Data')
@@ -65,7 +65,7 @@ if __name__ == '__main__':
     plt.legend()
     plt.tight_layout()
 
-    # Plot the results on the time-Z plnae
+    # Plot the data on the time-Z plnae
     fig = plt.figure()
     plt.plot(true_ts, true_ps[:, -1], 'g-', linewidth=line_width, label='Truth')
     plt.plot(data_ts, data_ps[:, -1], 'b.', linewidth=line_width, label='Data')

@@ -1,13 +1,14 @@
 import numpy as np
 from pyproj import Transformer
 import yaml
-from dataset_player import conjugate, hamilton_product
+from dataset_player import conjugate, hamilton_product, hamilton_rotate
+
 
 class SimpleLocalizer:
     '''A simple localizer with moving average'''
 
     def __init__(self, p_weight:float=0.5, q_weight:float=0.5,
-                 gps_origin_latlon=[], gps_espg_from:str='EPSG:4326', gps_espg_to:str='EPSG:5186',
+                 gps_origin_latlon=[], gps_espg_from:str='EPSG:4326', gps_espg_to:str='EPSG:5186', gps_robot2sensor_offset=[0, 0, 0],
                  ahrs_robot2sensor_quat=[0, 0, 0, 1]):
         '''A constructor'''
         self._p_weight = p_weight
@@ -15,7 +16,8 @@ class SimpleLocalizer:
         self._gps_origin_latlon = gps_origin_latlon
         self._gps_espg_from = gps_espg_from
         self._gps_espg_to = gps_espg_to
-        self._ahrs_senor2robobt = conjugate(ahrs_robot2sensor_quat)
+        self._gps_robot2sensor_offset = np.array(gps_robot2sensor_offset)
+        self._ahrs_senor2robobt_quat = conjugate(ahrs_robot2sensor_quat)
         self.initialize()
 
     def initialize(self) -> bool:
@@ -80,6 +82,7 @@ class SimpleLocalizer:
 
     def apply_gps_data(self, data:tuple, timestamp:float) -> bool:
         '''Apply the GPS data to the localizer'''
+        # Transform the GPS data to the metric position
         p_geo = data[0]
         if len(self._gps_origin_xyz) < 2:
             if len(self._gps_origin_latlon) < 2:
@@ -89,11 +92,14 @@ class SimpleLocalizer:
             self._gps_origin_xyz = np.array([x, y, 0])
         y, x = self._gps_espg_convertor.transform(p_geo[0], p_geo[1])
         p_xyz = [x, y, p_geo[2]] - self._gps_origin_xyz
+
+        # Compensate the GPS sensor offset
+        p_xyz = p_xyz - hamilton_rotate(self.q_xyzw, self._gps_robot2sensor_offset)
         return self.apply_position(p_xyz, timestamp)
 
     def apply_ahrs_data(self, data:tuple, timestamp:float) -> bool:
         '''Apply the AHRS data to the localizer'''
-        q_xyzw = hamilton_product(self._ahrs_senor2robobt, data[0])
+        q_xyzw = hamilton_product(self._ahrs_senor2robobt_quat, data[0]) # Compensate the sensor orientation
         return self.apply_orientation(q_xyzw, timestamp)
 
     def apply_pressure(self, pressure:float, timestamp:float) -> bool:
@@ -116,19 +122,22 @@ class SimpleLocalizer:
             self._gps_espg_from = config_dict['gps_espg_from']
         if 'gps_espg_to' in config_dict:
             self._gps_espg_to = config_dict['gps_espg_to']
+        if 'gps_robot2sensor_offset' in config_dict:
+            self._gps_robot2sensor_offset = np.array(config_dict['gps_robot2sensor_offset'])
         if 'ahrs_robot2sensor_quat' in config_dict:
-            self._ahrs_senor2robobt = conjugate(config_dict['ahrs_robot2sensor_quat'])
-        return True
+            self._ahrs_senor2robobt_quat = conjugate(config_dict['ahrs_robot2sensor_quat'])
+        return self.initialize()
 
     def get_config(self) -> dict:
         '''Get the configuration dictionary of the localizer'''
         return {
-            'p_weight'              : self._p_weight,
-            'q_weight'              : self._q_weight,
-            'gps_origin_latlon'     : list(self._gps_origin_latlon),
-            'gps_espg_from'         : self._gps_espg_from,
-            'gps_espg_to'           : self._gps_espg_to,
-            'ahrs_robot2sensor_quat': list(conjugate(self._ahrs_senor2robobt))
+            'p_weight'                  : self._p_weight,
+            'q_weight'                  : self._q_weight,
+            'gps_origin_latlon'         : list(self._gps_origin_latlon),
+            'gps_espg_from'             : self._gps_espg_from,
+            'gps_espg_to'               : self._gps_espg_to,
+            'gps_robot2sensor_offset'   : list(self._gps_robot2sensor_offset),
+            'ahrs_robot2sensor_quat'    : list(conjugate(self._ahrs_senor2robobt_quat))
         }
 
     def load_config_file(self, config_file:str) -> bool:

@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
+from pyproj import Transformer
 from simple_localizer import SimpleLocalizer
 from dataset_player import load_rosbag_file, DatasetPlayer
 
@@ -34,18 +35,23 @@ if __name__ == '__main__':
 
     # Prepare the data for plotting
     line_width = 2
-    orientation_step = 20
-    orientation_length = 0.1
-    orientation_width = 0.01
+    orientation_step = 100
+    orientation_length = 0.2
+    orientation_width = 0.02
     orientation_alpha = 0.5
-    # data_ts = np.array([time for time, _ in dataset['position']])
-    # data_ps = np.array([data for _, data in dataset['position']])
+    data_ts, data_ps = [], []
+    espg_convertor = Transformer.from_crs('EPSG:4326', 'EPSG:5186')
+    for time, (gps_geo, gps_cov) in dataset['gps']:
+        data_ts.append(time)
+        y, x = espg_convertor.transform(gps_geo[0], gps_geo[1])
+        data_ps.append([x, y, gps_geo[2]] - localizer._gps_origin_xyz)
+    data_ts, data_ps = np.array(data_ts), np.array(data_ps)
     algo_ts = np.array(results['time'])
     algo_ps = np.array(results['position'])
 
-    # Plot the results on the X-Y plnae
+    # Plot the data on the X-Y plnae
     fig = plt.figure()
-    # plt.plot(data_ps[:, 0], data_ps[:, 1], 'b.', linewidth=line_width, label='Data')
+    plt.plot(data_ps[:, 0], data_ps[:, 1], 'b.', linewidth=line_width, label='Data')
     plt.plot(algo_ps[:, 0], algo_ps[:, 1], 'r-', linewidth=line_width, label='Localizer')
     for i in range(0, len(algo_ps), orientation_step):
         p = results['position'][i]
@@ -62,9 +68,9 @@ if __name__ == '__main__':
     plt.legend()
     plt.tight_layout()
 
-    # Plot the results on the time-Z plnae
+    # Plot the data on the time-Z plnae
     fig = plt.figure()
-    # plt.plot(data_ts, data_ps[:, -1], 'b.', linewidth=line_width, label='Data')
+    plt.plot(data_ts, data_ps[:, -1], 'b.', linewidth=line_width, label='Data')
     plt.plot(algo_ts, algo_ps[:, -1], 'r-', linewidth=line_width, label='Localizer')
     plt.xlabel('Time [sec]')
     plt.ylabel('Z [m]')
