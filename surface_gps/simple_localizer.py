@@ -1,21 +1,27 @@
 import numpy as np
+from pyproj import Transformer
 import yaml
 
 class SimpleLocalizer:
     '''A simple localizer with moving average'''
 
-    def __init__(self, p_weight:float=0.5, q_weight:float=0.5):
+    def __init__(self, p_weight:float=0.5, q_weight:float=0.5, gps_origin_latlon=(), gps_espg_from:str='EPSG:4326', gps_espg_to:str='EPSG:5186'):
         '''A constructor'''
-        self.p_xyz = np.zeros(3)
-        self.q_xyzw = np.array([0., 0., 0., 1.])
         self._p_weight = p_weight
         self._q_weight = q_weight
+        self._gps_origin_latlon = gps_origin_latlon
+        self._gps_espg_from = gps_espg_from
+        self._gps_espg_to = gps_espg_to
         self.initialize()
 
     def initialize(self) -> bool:
         '''Initialize the localizer'''
+        self.p_xyz = np.zeros(3)
+        self.q_xyzw = np.array([0., 0., 0., 1.])
         self._is_p_first = True
         self._is_q_first = True
+        self._gps_origin_xyz = ()
+        self._gps_espg_convertor = Transformer.from_crs(self._gps_espg_from, self._gps_espg_to)
         return True
 
     def set_pose(self, pose:tuple) -> bool:
@@ -68,13 +74,23 @@ class SimpleLocalizer:
                 self.q_xyzw = self._q_weight * q_xyzw + (1 - self._q_weight) * self.q_xyzw
         return True
 
-    def apply_gps_data(self, latlonalt:np.array, timestamp:float) -> bool:
+    def apply_gps_data(self, data:tuple, timestamp:float) -> bool:
         '''Apply the GPS data to the localizer'''
-        return False
+        p_geo = data[0]
+        if len(self._gps_origin_xyz) < 2:
+            if len(self._gps_origin_latlon) < 2:
+                y, x = self._gps_espg_convertor.transform(p_geo[0], p_geo[1])
+            else:
+                y, x = self._gps_espg_convertor.transform(self._gps_origin_latlon[0], self._gps_origin_latlon[1])
+            self._gps_origin_xyz = np.array([x, y, 0])
+        y, x = self._gps_espg_convertor.transform(p_geo[0], p_geo[1])
+        p_xyz = [x, y, p_geo[2]] - self._gps_origin_xyz
+        return self.apply_position(p_xyz, timestamp)
 
-    def apply_ahrs_data(self, latlonalt:np.array, timestamp:float) -> bool:
+    def apply_ahrs_data(self, data:tuple, timestamp:float) -> bool:
         '''Apply the AHRS data to the localizer'''
-        return False
+        q_xyzw = data[0]
+        return self.apply_orientation(q_xyzw, timestamp)
 
     def apply_pressure(self, pressure:float, timestamp:float) -> bool:
         '''Apply the pressure data to the localizer'''
@@ -84,35 +100,44 @@ class SimpleLocalizer:
         '''Apply the image data to the localizer'''
         return False
 
-    def load_config_file(self, config_file:str) -> bool:
-        '''Load the configuration file for the localizer'''
-        with open(config_file, 'r') as f:
-            config_dict = yaml.safe_load(f)
-            if 'SimpleLocalizer' in config_dict:
-                return self.apply_config(config_dict['SimpleLocalizer'])
-            return self.apply_config(config_dict)
-        return False
-
-    def apply_config(self, config_dict:dict) -> bool:
+    def set_config(self, config_dict:dict) -> bool:
         '''Apply the configuration dictionary to the localizer'''
-        if 'p_xyz' in config_dict:
-            self.p_xyz = np.array(config_dict['p_xyz'])
-        if 'q_xyzw' in config_dict:
-            self.q_xyzw = np.array(config_dict['q_xyzw'])
         if 'p_weight' in config_dict:
             self._p_weight = config_dict['p_weight']
         if 'q_weight' in config_dict:
             self._q_weight = config_dict['q_weight']
+        if 'gps_origin_latlon' in config_dict:
+            self._gps_origin_latlon = config_dict['gps_origin_latlon']
+        if 'gps_espg_from' in config_dict:
+            self._gps_espg_from = config_dict['gps_espg_from']
+        if 'gps_espg_to' in config_dict:
+            self._gps_espg_to = config_dict['gps_espg_to']
         return True
+
+    def get_config(self) -> dict:
+        '''Get the configuration dictionary of the localizer'''
+        return {
+            'p_weight'          : self._p_weight,
+            'q_weight'          : self._q_weight,
+            'gps_origin_latlon' : self._gps_origin_latlon,
+            'gps_espg_from'     : self._gps_espg_from,
+            'gps_espg_to'       : self._gps_espg_to
+        }
+
+    def load_config_file(self, config_file:str) -> bool:
+        '''Load the configuration file for the localizer'''
+        with open(config_file, 'r') as f:
+            class_name = self.__class__.__name__
+            config_dict = yaml.safe_load(f)
+            if class_name in config_dict:
+                return self.set_config(config_dict[class_name])
+            return self.set_config(config_dict)
+        return False
 
     def save_config_file(self, config_file:str) -> bool:
         '''Save the configuration file for the localizer'''
         with open(config_file, 'w') as f:
-            config_dict = {
-                'SimpleLocalizer': {
-                    'p_weight': self._p_weight,
-                    'q_weight': self._q_weight
-                }
-            }
+            class_name = self.__class__.__name__
+            config_dict = { class_name: self.get_config() }
             yaml.dump(config_dict, f)
         return False

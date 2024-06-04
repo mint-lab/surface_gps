@@ -1,17 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-from dataset_player import make_cv_trajectory, add_gaussian_noise, DatasetPlayer
 from simple_localizer import SimpleLocalizer
+from dataset_player import load_rosbag_file, DatasetPlayer
 
 
 if __name__ == '__main__':
-    # Generate synthetic data
-    # truth = make_cv_trajectory(length=10, timestep=0.5, v=0.1, euler_init=(0, np.deg2rad(-10), 0)) # A straight line with a 10-degree pitch
-    truth = make_cv_trajectory(length=10, timestep=0.5, v=0.1, w=np.deg2rad(2), euler_init=(0, np.deg2rad(-10), 0)) # A circular trajectory
-    dataset = {
-        'position':     add_gaussian_noise(truth['position'], std_dev=[0.03, 0.03, 0.3]),
-        'orientation':  add_gaussian_noise(truth['orientation'], std_dev=0.01)}
+    # Read the real data
+    bag_file = '../../ros2_ws/data/HYWC_linear'
+    topics = {'gps'     : '/ublox/fix',
+              'ahrs'    : '/imu/data',
+              'pressure': '/zed2/zed_node/atm_press'}
+    dataset = load_rosbag_file('../../ros2_ws/data/HYWC_linear', list(topics.values()), list(topics.keys()))
 
     # Instantiate the localizer
     localizer = SimpleLocalizer()
@@ -38,17 +38,14 @@ if __name__ == '__main__':
     orientation_length = 0.1
     orientation_width = 0.01
     orientation_alpha = 0.5
-    true_ts = np.array([time for time, _ in truth['position']])
-    true_ps = np.array([data for _, data in truth['position']])
-    data_ts = np.array([time for time, _ in dataset['position']])
-    data_ps = np.array([data for _, data in dataset['position']])
+    # data_ts = np.array([time for time, _ in dataset['position']])
+    # data_ps = np.array([data for _, data in dataset['position']])
     algo_ts = np.array(results['time'])
     algo_ps = np.array(results['position'])
 
     # Plot the results on the X-Y plnae
     fig = plt.figure()
-    plt.plot(true_ps[:, 0], true_ps[:, 1], 'g-', linewidth=line_width, label='Truth')
-    plt.plot(data_ps[:, 0], data_ps[:, 1], 'b.', linewidth=line_width, label='Data')
+    # plt.plot(data_ps[:, 0], data_ps[:, 1], 'b.', linewidth=line_width, label='Data')
     plt.plot(algo_ps[:, 0], algo_ps[:, 1], 'r-', linewidth=line_width, label='Localizer')
     for i in range(0, len(algo_ps), orientation_step):
         p = results['position'][i]
@@ -67,8 +64,7 @@ if __name__ == '__main__':
 
     # Plot the results on the time-Z plnae
     fig = plt.figure()
-    plt.plot(true_ts, true_ps[:, -1], 'g-', linewidth=line_width, label='Truth')
-    plt.plot(data_ts, data_ps[:, -1], 'b.', linewidth=line_width, label='Data')
+    # plt.plot(data_ts, data_ps[:, -1], 'b.', linewidth=line_width, label='Data')
     plt.plot(algo_ts, algo_ps[:, -1], 'r-', linewidth=line_width, label='Localizer')
     plt.xlabel('Time [sec]')
     plt.ylabel('Z [m]')
