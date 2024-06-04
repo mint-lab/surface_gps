@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation
 
 
 def conjugate(q_xyzw:np.array) -> np.array:
@@ -24,23 +24,23 @@ def hamilton_rotate(q_xyzw:np.array, v_xyz:np.array) -> np.array:
 def make_cv_trajectory(length=100, timestep=1, v=1, w=0, p_init=[0, 0, 0], euler_init=[0, 0, 0]):
     '''Return lists of time-stampled positions and orientations with a constant linear and angular velocity'''
     # Calculate the displacement from the constant linear and angular velocity
-    if type(v) is float or type(v) is int:
+    if type(v) is not np.array or type(v) is not list or type(v) is not tuple:
         v = [v, 0, 0] # Assume the 1D velocity is along the x-axis
-    if type(w) is float or type(w) is int:
+    if type(w) is not np.array or type(w) is not list or type(w) is not tuple:
         w = [0, 0, w] # Assume the 1D angular velocity is around the z-axis
     vdt = np.array(v) * timestep
     wdt = np.array(w) * timestep
-    wdt = R.from_euler('xyz', wdt).as_quat()
+    wdt = Rotation.from_euler('xyz', wdt).as_quat()
 
     # Derive the trajectory with the constant displacement
     t = 0.
     p_txyz  = [(t, np.array(p_init))]                           # [(time, position), ...]
-    q_txyzw = [(t, R.from_euler('xyz', euler_init).as_quat())]  # [(time, orientation), ...]
+    q_txyzw = [(t, Rotation.from_euler('xyz', euler_init).as_quat())]  # [(time, orientation), ...]
     distance = 0
     while distance < length:
         t += timestep
         p_txyz.append((t, p_txyz[-1][-1] + hamilton_rotate(q_txyzw[-1][-1], vdt)))
-        q_txyzw.append((t, hamilton_product(q_txyzw[-1][-1], wdt)))
+        q_txyzw.append((t, hamilton_product(wdt, q_txyzw[-1][-1])))
         distance += np.linalg.norm(vdt)
     return {'position': p_txyz, 'orientation': q_txyzw}
 
