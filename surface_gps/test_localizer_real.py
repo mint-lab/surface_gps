@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     # Instantiate the localizer
     localizer = SimpleLocalizer()
-    localizer.set_config({'p_weight': 0.2, 'q_weight': 0.2})
+    localizer.set_config({'ahrs_robot2sensor_quat': Rotation.from_euler('xyz', [0, 0, -np.pi/2]).as_quat()})
 
     # Perform localization and record its results
     player = DatasetPlayer(dataset)

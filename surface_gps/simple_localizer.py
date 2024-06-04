@@ -1,17 +1,21 @@
 import numpy as np
 from pyproj import Transformer
 import yaml
+from dataset_player import conjugate, hamilton_product
 
 class SimpleLocalizer:
     '''A simple localizer with moving average'''
 
-    def __init__(self, p_weight:float=0.5, q_weight:float=0.5, gps_origin_latlon=(), gps_espg_from:str='EPSG:4326', gps_espg_to:str='EPSG:5186'):
+    def __init__(self, p_weight:float=0.5, q_weight:float=0.5,
+                 gps_origin_latlon=[], gps_espg_from:str='EPSG:4326', gps_espg_to:str='EPSG:5186',
+                 ahrs_robot2sensor_quat=[0, 0, 0, 1]):
         '''A constructor'''
         self._p_weight = p_weight
         self._q_weight = q_weight
         self._gps_origin_latlon = gps_origin_latlon
         self._gps_espg_from = gps_espg_from
         self._gps_espg_to = gps_espg_to
+        self._ahrs_senor2robobt = conjugate(ahrs_robot2sensor_quat)
         self.initialize()
 
     def initialize(self) -> bool:
@@ -20,7 +24,7 @@ class SimpleLocalizer:
         self.q_xyzw = np.array([0., 0., 0., 1.])
         self._is_p_first = True
         self._is_q_first = True
-        self._gps_origin_xyz = ()
+        self._gps_origin_xyz = []
         self._gps_espg_convertor = Transformer.from_crs(self._gps_espg_from, self._gps_espg_to)
         return True
 
@@ -89,7 +93,7 @@ class SimpleLocalizer:
 
     def apply_ahrs_data(self, data:tuple, timestamp:float) -> bool:
         '''Apply the AHRS data to the localizer'''
-        q_xyzw = data[0]
+        q_xyzw = hamilton_product(self._ahrs_senor2robobt, data[0])
         return self.apply_orientation(q_xyzw, timestamp)
 
     def apply_pressure(self, pressure:float, timestamp:float) -> bool:
@@ -112,16 +116,19 @@ class SimpleLocalizer:
             self._gps_espg_from = config_dict['gps_espg_from']
         if 'gps_espg_to' in config_dict:
             self._gps_espg_to = config_dict['gps_espg_to']
+        if 'ahrs_robot2sensor_quat' in config_dict:
+            self._ahrs_senor2robobt = conjugate(config_dict['ahrs_robot2sensor_quat'])
         return True
 
     def get_config(self) -> dict:
         '''Get the configuration dictionary of the localizer'''
         return {
-            'p_weight'          : self._p_weight,
-            'q_weight'          : self._q_weight,
-            'gps_origin_latlon' : self._gps_origin_latlon,
-            'gps_espg_from'     : self._gps_espg_from,
-            'gps_espg_to'       : self._gps_espg_to
+            'p_weight'              : self._p_weight,
+            'q_weight'              : self._q_weight,
+            'gps_origin_latlon'     : list(self._gps_origin_latlon),
+            'gps_espg_from'         : self._gps_espg_from,
+            'gps_espg_to'           : self._gps_espg_to,
+            'ahrs_robot2sensor_quat': list(conjugate(self._ahrs_senor2robobt))
         }
 
     def load_config_file(self, config_file:str) -> bool:
