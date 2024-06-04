@@ -22,7 +22,7 @@ def hamilton_rotate(q_xyzw:np.array, v_xyz:np.array) -> np.array:
 
 
 def make_cv_trajectory(length=100, timestep=1, v=1, w=0, p_init=[0, 0, 0], euler_init=[0, 0, 0]):
-    '''Return lists of time-stampled positions and orientations with a constant linear and angular velocity'''
+    '''Generate time-stampled positions and orientations with a constant linear and angular velocity'''
     # Calculate the displacement from the constant linear and angular velocity
     if type(v) is not np.array or type(v) is not list or type(v) is not tuple:
         v = [v, 0, 0] # Assume the 1D velocity is along the x-axis
@@ -51,6 +51,33 @@ def add_gaussian_noise(true_data, mean=0., std_dev=0.1):
     for (t, data) in true_data:
         noisy_data.append((t, data + np.random.normal(mean, std_dev, data.shape)))
     return noisy_data
+
+
+def load_rosbag_file(bag_file:str, topic_names:list, target_names:list=[]) -> dict:
+    '''Load a ROS bag file and return the desired topics'''
+    from pathlib import Path
+    from rosbags.highlevel import AnyReader
+
+    bag_file_ = Path(bag_file)
+    topic_names_ = [topic if topic.startswith('/') else '/' + topic for topic in topic_names]
+    if len(target_names) != len(topic_names_):
+        target_names = topic_names_
+
+    dataset = {}
+    with AnyReader([bag_file_]) as reader:
+        for topic_name, target_name in zip(topic_names_, target_names):
+            dataset[target_name] = []
+            connections = [x for x in reader.connections if x.topic == topic_name]
+            for connection, timestamp, rawdata in reader.messages(connections=connections):
+                time_sec = timestamp / 10**9 # Convert nanoseconds to seconds
+                msg = reader.deserialize(rawdata, connection.msgtype)
+                if connection.msgtype == 'sensor_msgs/msg/NavSatFix':
+                    dataset[target_name].append((time_sec, (np.array([msg.latitude, msg.longitude, msg.altitude]), msg.position_covariance)))
+                elif connection.msgtype == 'sensor_msgs/msg/Imu':
+                    dataset[target_name].append((time_sec, (np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w]), msg.orientation_covariance)))
+                elif connection.msgtype == 'sensor_msgs/msg/FluidPressure':
+                    dataset[target_name].append((time_sec, (msg.fluid_pressure, msg.variance)))
+    return dataset
 
 
 class DatasetPlayer:

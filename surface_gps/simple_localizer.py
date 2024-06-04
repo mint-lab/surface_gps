@@ -4,12 +4,12 @@ import yaml
 class SimpleLocalizer:
     '''A simple localizer with moving average'''
 
-    def __init__(self):
+    def __init__(self, p_weight:float=0.5, q_weight:float=0.5):
         '''A constructor'''
         self.p_xyz = np.zeros(3)
         self.q_xyzw = np.array([0., 0., 0., 1.])
-        self.p_weight = 0.5
-        self.q_weight = 0.5
+        self._p_weight = p_weight
+        self._q_weight = q_weight
         self.initialize()
 
     def initialize(self) -> bool:
@@ -26,6 +26,22 @@ class SimpleLocalizer:
         '''Get the current pose of the localizer'''
         return (self.p_xyz, self.q_xyzw)
 
+    def apply_data(self, data_type:str, data:dict, timestamp:float) -> bool:
+        '''Apply the data to the localizer accodring to the data type'''
+        if data_type == 'position':
+            return self.apply_position(data, timestamp)
+        elif data_type == 'orientation':
+            return self.apply_orientation(data, timestamp)
+        elif data_type == 'gps':
+            return self.apply_gps_data(data, timestamp)
+        elif data_type == 'ahrs':
+            return self.apply_ahrs_data(data, timestamp)
+        elif data_type == 'pressure':
+            return self.apply_pressure(data, timestamp)
+        elif data_type == 'image':
+            return self.apply_image(data, timestamp)
+        return False
+
     def apply_position(self, p_xyz:np.array, timestamp:float) -> bool:
         '''Apply the position data to the localizer'''
         if self._is_p_first:
@@ -33,7 +49,7 @@ class SimpleLocalizer:
             self.p_xyz = p_xyz.copy()
         else:
             # Apply the linear interpolation (Lerp) between current and new orientation
-            self.p_xyz = self.p_weight * p_xyz + (1 - self.p_weight) * self.p_xyz
+            self.p_xyz = self._p_weight * p_xyz + (1 - self._p_weight) * self.p_xyz
         return True
 
     def apply_orientation(self, q_xyzw:np.array, timestamp:float) -> bool:
@@ -45,11 +61,11 @@ class SimpleLocalizer:
             # Apply the sphericial linear interpolation (Slerp) between current and new orientation
             theta = np.arccos(np.dot(self.q_xyzw, q_xyzw))
             if np.fabs(theta) > 1e-6:
-                w0 = np.sin(self.q_weight*theta) / np.sin(theta)
-                w1 = np.sin((1 - self.q_weight)*theta) / np.sin(theta)
+                w0 = np.sin(self._q_weight*theta) / np.sin(theta)
+                w1 = np.sin((1 - self._q_weight)*theta) / np.sin(theta)
                 self.q_xyzw = w0 * q_xyzw + w1 * self.q_xyzw
             else:
-                self.q_xyzw = self.q_weight * q_xyzw + (1 - self.q_weight) * self.q_xyzw
+                self.q_xyzw = self._q_weight * q_xyzw + (1 - self._q_weight) * self.q_xyzw
         return True
 
     def apply_gps_data(self, latlonalt:np.array, timestamp:float) -> bool:
@@ -84,9 +100,9 @@ class SimpleLocalizer:
         if 'q_xyzw' in config_dict:
             self.q_xyzw = np.array(config_dict['q_xyzw'])
         if 'p_weight' in config_dict:
-            self.p_weight = config_dict['p_weight']
+            self._p_weight = config_dict['p_weight']
         if 'q_weight' in config_dict:
-            self.q_weight = config_dict['q_weight']
+            self._q_weight = config_dict['q_weight']
         return True
 
     def save_config_file(self, config_file:str) -> bool:
@@ -94,8 +110,8 @@ class SimpleLocalizer:
         with open(config_file, 'w') as f:
             config_dict = {
                 'SimpleLocalizer': {
-                    'p_weight': self.p_weight,
-                    'q_weight': self.q_weight
+                    'p_weight': self._p_weight,
+                    'q_weight': self._q_weight
                 }
             }
             yaml.dump(config_dict, f)

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-from synthetic_dataset import make_cv_trajectory, add_gaussian_noise, DatasetPlayer
+from dataset_player import make_cv_trajectory, add_gaussian_noise, DatasetPlayer
 from simple_localizer import SimpleLocalizer
 
 
@@ -19,18 +19,15 @@ if __name__ == '__main__':
 
     # Perform localization and record its results
     player = DatasetPlayer(dataset)
-    results = {'timestamp': [], 'position': [], 'orientation': []}
+    results = {'time': [], 'position': [], 'orientation': []}
     while True:
-        type, timestamp, data = player.get_next()
+        type, time, data = player.get_next()
         if type is None:
             break
-        elif type == 'position':
-            success = localizer.apply_position(data, timestamp)
-        elif type == 'orientation':
-            success = localizer.apply_orientation(data, timestamp)
+        success = localizer.apply_data(type, data, time)
         if not success:
-            print(f'Failed to localize at timestamp={timestamp} (data type: {type})')
-        results['timestamp'].append(timestamp)
+            print(f'Failed to localize at timestamp={time} (data type: {type})')
+        results['time'].append(time)
         p, q = localizer.get_pose()
         results['position'].append(p)
         results['orientation'].append(q)
@@ -45,7 +42,7 @@ if __name__ == '__main__':
     true_ps = np.array([data for _, data in truth['position']])
     data_ts = np.array([time for time, _ in dataset['position']])
     data_ps = np.array([data for _, data in dataset['position']])
-    algo_ts = np.array(results['timestamp'])
+    algo_ts = np.array(results['time'])
     algo_ps = np.array(results['position'])
 
     # Plot the results on the X-Y plnae
