@@ -17,7 +17,6 @@ class SimpleLocalizer:
         self._gps_epsg_from = gps_epsg_from
         self._gps_epsg_to = gps_epsg_to
         self._gps_robot2sensor_offset = np.array(gps_robot2sensor_offset)
-        self._gps_origin_xyz = np.array([])
         self._ahrs_senor2robobt_quat = conjugate(ahrs_robot2sensor_quat)
         self.initialize()
 

@@ -41,7 +41,8 @@ if __name__ == '__main__':
     orientation_alpha = 0.5
     data_ts, data_ps = [], []
     epsg_convertor = Transformer.from_crs('EPSG:4326', 'EPSG:5186')
-    epsg_offset = epsg_convertor.transform(*localizer.get_gps_origin())
+    y, x = epsg_convertor.transform(*localizer.get_gps_origin())
+    epsg_offset = np.array([x, y, 0])
     for time, (gps_geo, gps_cov) in dataset['gps']:
         data_ts.append(time)
         y, x = epsg_convertor.transform(gps_geo[0], gps_geo[1])
