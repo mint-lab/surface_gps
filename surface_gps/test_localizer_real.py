@@ -12,7 +12,7 @@ if __name__ == '__main__':
     topics = {'gps'     : '/ublox/fix',
               'ahrs'    : '/imu/data',
               'pressure': '/zed2/zed_node/atm_press'}
-    dataset = load_rosbag_file('../../ros2_ws/data/HYWC_linear', list(topics.values()), list(topics.keys()))
+    dataset = load_rosbag_file(bag_file, list(topics.values()), list(topics.keys()))
 
     # Instantiate the localizer
     localizer = SimpleLocalizer()
@@ -40,11 +40,12 @@ if __name__ == '__main__':
     orientation_width = 0.02
     orientation_alpha = 0.5
     data_ts, data_ps = [], []
-    espg_convertor = Transformer.from_crs('EPSG:4326', 'EPSG:5186')
+    epsg_convertor = Transformer.from_crs('EPSG:4326', 'EPSG:5186')
+    epsg_offset = epsg_convertor.transform(*localizer.get_gps_origin())
     for time, (gps_geo, gps_cov) in dataset['gps']:
         data_ts.append(time)
-        y, x = espg_convertor.transform(gps_geo[0], gps_geo[1])
-        data_ps.append([x, y, gps_geo[2]] - localizer._gps_origin_xyz)
+        y, x = epsg_convertor.transform(gps_geo[0], gps_geo[1])
+        data_ps.append([x, y, gps_geo[2]] - epsg_offset)
     data_ts, data_ps = np.array(data_ts), np.array(data_ps)
     algo_ts = np.array(results['time'])
     algo_ps = np.array(results['position'])
