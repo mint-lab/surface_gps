@@ -8,7 +8,6 @@ sudo apt install ros-$ROS_DISTRO-rviz-imu-plugin
 # Install sensor packages
 cd ../ # .../src
 git clone -b dev_4.0.6 --recursive https://github.com/stereolabs/zed-ros2-wrapper.git
-git clone -b humble https://github.com/ros-drivers/ros2_ouster_drivers.git
 git clone -b ros2 https://github.com/ros-drivers/nmea_navsat_driver.git
 git clone https://github.com/CLOBOT-Co-Ltd/myahrs_ros2_driver.git
 git clone https://github.com/mint-lab/mint_cart_ros.git
