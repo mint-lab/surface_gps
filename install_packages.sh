@@ -15,7 +15,7 @@ git clone https://github.com/mint-lab/mint_cart_ros.git
 git clone -b foxy-devel https://github.com/dongwookheo/ros2_humble_ublox_f9r.git
 
 # Fix myahrs_ros2_driver.cpp
-cd surface_gps/myahrs_ros2_driver/myahrs_ros2_driver/src
+cd ./myahrs_ros2_driver/myahrs_ros2_driver/src
 sed -i 's/this->declare_parameter(\("[a-z_]*"\))/this->declare_parameter(\1, 0.0)/g' ./myahrs_ros2_driver.cpp
 
 # Apply revised launch files
