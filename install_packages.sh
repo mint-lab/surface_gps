@@ -11,6 +11,7 @@ git clone -b humble https://github.com/ros-drivers/ros2_ouster_drivers.git
 git clone -b ros2 https://github.com/ros-drivers/nmea_navsat_driver.git
 git clone https://github.com/CLOBOT-Co-Ltd/myahrs_ros2_driver.git
 git clone https://github.com/mint-lab/mint_cart_ros.git
+git clone -b foxy-devel https://github.com/dongwookheo/ros2_humble_ublox_f9r.git
 
 # Fix myahrs_ros2_driver.cpp
 cd myahrs_ros2_driver/myahrs_ros2_driver/src
