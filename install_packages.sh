@@ -24,7 +24,7 @@ cp ublox_serial_driver.yaml ../../nmea_navsat_driver/config/ublox_serial_driver.
 cp ublox_serial.launch.py ../../nmea_navsat_driver/launch/ublox_serial.launch.py
 
 # Install ROS Packages Dependencies
-cd ../../../../ # ros woskspace
+cd ../../../ # ros woskspace
 source /root/.bashrc
 rosdep update
 rosdep install --from-path src --ignore-src -r -y
