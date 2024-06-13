@@ -37,6 +37,10 @@ class EKF_node(Node):
         self.pub_tf = self.create_publisher(TFMessage, '/tf', 10)
         self.pub_path = self.create_publisher(Path, '/ekf_path', 10)
         self.pub_nav_path = self.create_publisher(Path, '/nav_path', 10)
+
+        self.pub_ekf_pose = self.create_publisher(PoseStamped, '/ekf_pose', 10)
+        self.pub_nav_pose = self.create_publisher(PoseStamped, '/nav_pose', 10)
+
         self.path_list = []
         self.path_msg = Path()
 
@@ -131,7 +135,7 @@ class EKF_node(Node):
         self.localizer.update(z, HJacobian=self.H, Hx=self.h)
         self.localizer.predict()
         # print(self.localizer.x)
-        
+
 
         # Publish TF
         msg = TransformStamped()
@@ -168,6 +172,9 @@ class EKF_node(Node):
         self.path_msg.poses = self.path_list
         self.pub_path.publish(self.path_msg)
 
+        # Publish EKF_pose
+        self.pub_ekf_pose.publish(pose_msg)
+
         nav_msg = PoseStamped()
         nav_msg.header.stamp = data.header.stamp
         nav_msg.header.frame_id = 'map'
@@ -184,6 +191,9 @@ class EKF_node(Node):
         self.nav_msg.header = pose_msg.header
         self.nav_msg.poses = self.nav_list
         self.pub_nav_path.publish(self.nav_msg)
+
+        # Publish Nav_pose
+        self.pub_nav_pose.publish(nav_msg)
 
 def main():
     rclpy.init()
