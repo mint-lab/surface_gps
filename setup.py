@@ -26,7 +26,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        'ekf_node = surface_gps.ekf_node:main',
+        'ekf_node = surface_gps.localizer_node:main',
         ],
     },
 )
