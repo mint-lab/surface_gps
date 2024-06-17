@@ -1,7 +1,7 @@
 import numpy as np
 from pyproj import Transformer
 import yaml
-from dataset_player import conjugate, hamilton_product, hamilton_rotate
+from surface_gps.dataset_player import conjugate, hamilton_product, hamilton_rotate
 
 
 class SimpleLocalizer:
@@ -48,7 +48,7 @@ class SimpleLocalizer:
         return self._gps_origin_latlon
 
     def apply_data(self, data_type: str, data, timestamp: float = None) -> bool:
-        '''Apply the data to the localizer accodring to the data type'''
+        '''Apply the data to the localizer according to the data type'''
         if data_type == 'position':
             return self.apply_position(data, timestamp)
         elif data_type == 'orientation':
@@ -79,8 +79,9 @@ class SimpleLocalizer:
             self._is_q_first = False
             self._q_xyzw = q_xyzw.copy()
         else:
-            # Apply the sphericial linear interpolation (Slerp) between current and new orientation
-            theta = np.arccos(np.dot(self._q_xyzw, q_xyzw))
+            # Apply the spherical linear interpolation (Slerp) between current and new orientation
+            dot_product = np.dot(self._q_xyzw, q_xyzw)
+            theta = np.arccos(np.clip(dot_product, -1, 1))
             if np.fabs(theta) > 1e-6:
                 w0 = np.sin(self._q_weight*theta) / np.sin(theta)
                 w1 = np.sin((1 - self._q_weight)*theta) / np.sin(theta)
