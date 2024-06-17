@@ -28,6 +28,7 @@ class SimpleLocalizer:
         self._is_q_first = True
         self._gps_origin_xyz = np.array([])
         self._gps_epsg_convertor = Transformer.from_crs(self._gps_epsg_from, self._gps_epsg_to)
+        self._gps_epsg_invertor = Transformer.from_crs(self._gps_epsg_to, self._gps_epsg_from)
         return True
 
     def set_pose(self, pose: tuple) -> bool:
@@ -43,9 +44,17 @@ class SimpleLocalizer:
         '''Get the current pose of the localizer'''
         return (self._p_xyz, self._q_xyzw)
 
-    def get_gps_origin(self) -> np.array:
+    def get_gps_origin(self) -> list:
         '''Get the GPS origin in the geodetic coordinate system'''
         return self._gps_origin_latlon
+
+    def get_gps_position(self) -> list:
+        '''Get the current position in the geodetic coordinate system'''
+        if len(self._gps_origin_xyz) == 3:
+            p = self._gps_origin_xyz + self._p_xyz
+            lat, lon = self._gps_epsg_invertor.transform(p[1], p[0])
+            return [lat, lon, p[2]]
+        return []
 
     def apply_data(self, data_type: str, data, timestamp: float = None) -> bool:
         '''Apply the data to the localizer according to the data type'''
