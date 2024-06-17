@@ -1,0 +1,25 @@
+p_weight: 0.8
+
+q_weight: 0.8
+
+gps_origin_latlon: [
+    37.55868011468263,
+    127.04864118011761
+]
+
+gps_epsg_from: "EPSG:4326"
+
+gps_epsg_to: "EPSG:5186"
+
+gps_robot2sensor_offset: [
+    0.0,
+    0.0,
+    0.0
+]
+
+ahrs_robot2sensor_quat: [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+]
