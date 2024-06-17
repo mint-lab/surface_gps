@@ -1,7 +1,7 @@
 import numpy as np
 from pyproj import Transformer
 import yaml
-from dataset_player import conjugate, hamilton_product, hamilton_rotate
+from surface_gps.dataset_player import conjugate, hamilton_product, hamilton_rotate
 
 
 class SimpleLocalizer:
@@ -17,7 +17,7 @@ class SimpleLocalizer:
         self._gps_epsg_from = gps_epsg_from
         self._gps_epsg_to = gps_epsg_to
         self._gps_robot2sensor_offset = np.array(gps_robot2sensor_offset)
-        self._ahrs_senor2robobt_quat = conjugate(ahrs_robot2sensor_quat)
+        self._ahrs_sensor2robot_quat = conjugate(ahrs_robot2sensor_quat)
         self.initialize()
 
     def initialize(self) -> bool:
@@ -32,7 +32,12 @@ class SimpleLocalizer:
 
     def set_pose(self, pose: tuple) -> bool:
         '''Set the pose of the localizer'''
-        return (self._p_xyz, self._q_xyzw)
+        if len(pose) != 2 or not isinstance(pose[0], np.ndarray) and not isinstance(pose[1], np.ndarray):
+            print('The pose should be a tuple with two numpy arrays: (p_xyz, q_xyzw)')
+            return False
+
+        self._p_xyz, self._q_xyzw = pose
+        return True
 
     def get_pose(self) -> tuple:
         '''Get the current pose of the localizer'''
@@ -43,7 +48,7 @@ class SimpleLocalizer:
         return self._gps_origin_latlon
 
     def apply_data(self, data_type: str, data, timestamp: float = None) -> bool:
-        '''Apply the data to the localizer accodring to the data type'''
+        '''Apply the data to the localizer according to the data type'''
         if data_type == 'position':
             return self.apply_position(data, timestamp)
         elif data_type == 'orientation':
@@ -64,7 +69,7 @@ class SimpleLocalizer:
             self._is_p_first = False
             self._p_xyz = p_xyz.copy()
         else:
-            # Apply the linear interpolation (Lerp) between current and new orientation
+            # Apply the linear interpolation (Lerp) between current and new position
             self._p_xyz = self._p_weight * p_xyz + (1 - self._p_weight) * self._p_xyz
         return True
 
@@ -74,8 +79,9 @@ class SimpleLocalizer:
             self._is_q_first = False
             self._q_xyzw = q_xyzw.copy()
         else:
-            # Apply the sphericial linear interpolation (Slerp) between current and new orientation
-            theta = np.arccos(np.dot(self._q_xyzw, q_xyzw))
+            # Apply the spherical linear interpolation (Slerp) between current and new orientation
+            dot_product = np.dot(self._q_xyzw, q_xyzw)
+            theta = np.arccos(np.clip(dot_product, -1, 1))
             if np.fabs(theta) > 1e-6:
                 w0 = np.sin(self._q_weight*theta) / np.sin(theta)
                 w1 = np.sin((1 - self._q_weight)*theta) / np.sin(theta)
@@ -102,7 +108,7 @@ class SimpleLocalizer:
 
     def apply_ahrs_data(self, data: tuple, timestamp: float = None) -> bool:
         '''Apply the AHRS data to the localizer'''
-        q_xyzw = hamilton_product(self._ahrs_senor2robobt_quat, data[0]) # Compensate the sensor orientation
+        q_xyzw = hamilton_product(self._ahrs_sensor2robot_quat, data[0]) # Compensate the sensor orientation
         return self.apply_orientation(q_xyzw, timestamp)
 
     def apply_pressure(self, pressure: float, timestamp: float = None) -> bool:
@@ -128,7 +134,7 @@ class SimpleLocalizer:
         if 'gps_robot2sensor_offset' in config_dict:
             self._gps_robot2sensor_offset = np.array(config_dict['gps_robot2sensor_offset'])
         if 'ahrs_robot2sensor_quat' in config_dict:
-            self._ahrs_senor2robobt_quat = conjugate(config_dict['ahrs_robot2sensor_quat'])
+            self._ahrs_sensor2robot_quat = conjugate(config_dict['ahrs_robot2sensor_quat'])
         return self.initialize()
 
     def get_config(self) -> dict:
@@ -140,7 +146,7 @@ class SimpleLocalizer:
             'gps_epsg_from'             : self._gps_epsg_from,
             'gps_epsg_to'               : self._gps_epsg_to,
             'gps_robot2sensor_offset'   : list(self._gps_robot2sensor_offset),
-            'ahrs_robot2sensor_quat'    : list(conjugate(self._ahrs_senor2robobt_quat))
+            'ahrs_robot2sensor_quat'    : list(conjugate(self._ahrs_sensor2robot_quat))
         }
 
     def load_config_file(self, config_file: str) -> bool:
