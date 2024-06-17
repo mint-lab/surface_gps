@@ -54,10 +54,16 @@ class Localizer_node(Node):
         # Load the configuration file
         if self.config_file:
             if self.simple_localizer.load_config_file(self.config_file):
-                self.get_logger().info(f"Loaded the configuration file: {self.config_file}")
-                self.get_logger().info(f"Configuration: \n{self.simple_localizer.get_config()}")
+                self.get_logger().info(
+                    f"Loaded the configuration file: {self.config_file}"
+                )
+                self.get_logger().info(
+                    f"Configuration: \n{self.simple_localizer.get_config()}"
+                )
             else:
-                self.get_logger().error(f"Failed to load the configuration file: {self.config_file}")
+                self.get_logger().error(
+                    f"Failed to load the configuration file: {self.config_file}"
+                )
         else:
             self.get_logger().warn("No configuration file is loaded")
 
@@ -136,25 +142,35 @@ class Localizer_node(Node):
         latlon_msg.header.frame_id = "map"
         latlonalt = self.simple_localizer.get_gps_position()
         latlon_msg.latitude = latlonalt[0]
-        latlon_msg.longitude = latlonalt[0]
-        latlon_msg.altitude = latlonalt[0]
+        latlon_msg.longitude = latlonalt[1]
+        latlon_msg.altitude = latlonalt[2]
         latlon_msg.position_covariance = [0.0] * 9
 
         self.pub_latlon.publish(latlon_msg)
 
     def gps_avg_callback(self, request: UInt8, response: Float32MultiArray):
         """A service callback function for the GPS averaging"""
-        #TODO: Handle unexpected behavior when the GPS data is not available
+        # TODO: Handle unexpected behavior when the GPS data is not available
         gps_latlon_list = []
         gps_latlon = None
+        gps_position_list = []
+        gps_position = None
         for _ in range(request.filter_size):
             gps_latlon = self.simple_localizer.get_gps_position()
-            if gps_latlon:
+            gps_position = self.simple_localizer.get_pose()[0].tolist()
+
+            if gps_latlon and gps_position:
                 gps_latlon_list.append(gps_latlon)
+                gps_position_list.append(gps_position)
 
         if not gps_latlon_list:
             response_data = Float32MultiArray(data=[])
             response.latlon = response_data
+            self.get_logger().warn("No GPS data is available")
+            return response
+        if not gps_position_list:
+            response_data = Float32MultiArray(data=[])
+            response.position = response_data
             self.get_logger().warn("No GPS data is available")
             return response
 
@@ -169,9 +185,9 @@ class Localizer_node(Node):
         response_origin.data = gps_origin
         response.origin = response_origin
 
-        gps_position = self.simple_localizer.get_pose()[0]
+        gps_position_avg = np.sum(gps_position_list, axis=0) / len(gps_position_list)
         response_pose = Float32MultiArray()
-        response_pose.data = gps_position.tolist()
+        response_pose.data = gps_position_avg.tolist()
         response.position = response_pose
 
         self.get_logger().info(f"GPS origin: {response.origin}")
