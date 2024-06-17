@@ -1,6 +1,7 @@
+import yaml
+
 import rclpy
 from rclpy.node import Node
-
 from geometry_msgs.msg import TransformStamped, PoseStamped
 from tf2_msgs.msg import TFMessage
 from sensor_msgs.msg import NavSatFix, Imu
@@ -32,9 +33,26 @@ class Localizer_node(Node):
 
         self.simple_localizer = SimpleLocalizer()
 
+        self.config_file = self.declare_parameter('config_file').get_parameter_value().string_value
+        self.initialize()
+
+    def initialize(self):
+        '''Initialize the simple localizer'''
         # Initialize the pose attributes
         self.x, self.y, self.z = 0., 0., 0.
         self.qx, self.qy, self.qz, self.qw = 0., 0., 0., 1.
+
+        # Load the configuration file
+        if self.config_file:
+            if self.simple_localizer.load_config_file(self.config_file):
+                self.get_logger().info(f'Loaded the configuration file: {self.config_file}')
+                self.get_logger().info(f'Configuration: \n{self.simple_localizer.get_config()}')
+            else:
+                self.get_logger().error(f'Failed to load the configuration file: {self.config_file}')
+        else:
+            self.get_logger().warn('No configuration file is loaded')
+
+        return True
 
     def gps_callback(self, msg: NavSatFix):
         '''A callback function for the GPS data'''
