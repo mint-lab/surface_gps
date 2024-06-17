@@ -33,6 +33,7 @@ class Localizer_node(Node):
         self.pub_tf = self.create_publisher(TFMessage, "/tf", 10)
         self.pub_robot_pose = self.create_publisher(PoseStamped, "/robot/pose", 10)
         self.pub_robot_path = self.create_publisher(Path, "/robot/path", 10)
+        self.pub_latlon = self.create_publisher(NavSatFix, "/robot/latlon", 10)
 
         self.pose_list = []
         self.path_msg = Path()
@@ -126,9 +127,20 @@ class Localizer_node(Node):
         self.path_msg.header = pose_msg.header
         self.path_msg.poses = self.pose_list
 
-        # Publish pose and path
         self.pub_robot_pose.publish(pose_msg)
         self.pub_robot_path.publish(self.path_msg)
+
+        # Publish latlon
+        latlon_msg = NavSatFix()
+        latlon_msg.header.stamp = header.stamp
+        latlon_msg.header.frame_id = "map"
+        latlonalt = self.simple_localizer.get_gps_position()
+        latlon_msg.latitude = latlonalt[0]
+        latlon_msg.longitude = latlonalt[0]
+        latlon_msg.altitude = latlonalt[0]
+        latlon_msg.position_covariance = [0.0] * 9
+
+        self.pub_latlon.publish(latlon_msg)
 
     def gps_avg_callback(self, request: UInt8, response: Float32MultiArray):
         """A service callback function for the GPS averaging"""
@@ -141,9 +153,8 @@ class Localizer_node(Node):
                 gps_latlon_list.append(gps_latlon)
 
         if not gps_latlon_list:
-            response_data = Float32MultiArray()
-            response_data.data = []
-            response.position = response_data
+            response_data = Float32MultiArray(data=[])
+            response.latlon = response_data
             self.get_logger().warn("No GPS data is available")
             return response
 
@@ -151,8 +162,21 @@ class Localizer_node(Node):
         gps_latlon_avg = np.sum(gps_latlon_list, axis=0) / len(gps_latlon_list)
         response_data = Float32MultiArray()
         response_data.data = gps_latlon_avg.tolist()
-        response.position = response_data
-        self.get_logger().info(f"GPS average: {response.position}")
+        response.latlon = response_data
+
+        gps_origin = self.simple_localizer.get_gps_origin()
+        response_origin = Float32MultiArray()
+        response_origin.data = gps_origin
+        response.origin = response_origin
+
+        gps_position = self.simple_localizer.get_pose()[0]
+        response_pose = Float32MultiArray()
+        response_pose.data = gps_position.tolist()
+        response.position = response_pose
+
+        self.get_logger().info(f"GPS origin: {response.origin}")
+        self.get_logger().info(f"GPS latlon: {response.latlon}")
+        self.get_logger().info(f"GPS xyz: {response.position}")
         return response
 
 
