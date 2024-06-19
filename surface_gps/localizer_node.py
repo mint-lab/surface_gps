@@ -141,12 +141,14 @@ class Localizer_node(Node):
         latlon_msg.header.stamp = header.stamp
         latlon_msg.header.frame_id = "map"
         latlonalt = self.simple_localizer.get_gps_position()
-        latlon_msg.latitude = latlonalt[0]
-        latlon_msg.longitude = latlonalt[1]
-        latlon_msg.altitude = latlonalt[2]
-        latlon_msg.position_covariance = [0.0] * 9
 
-        self.pub_latlon.publish(latlon_msg)
+        if len(latlonalt) == 3:
+            latlon_msg.latitude = latlonalt[0]
+            latlon_msg.longitude = latlonalt[1]
+            latlon_msg.altitude = latlonalt[2]
+            latlon_msg.position_covariance = [0.0] * 9
+
+            self.pub_latlon.publish(latlon_msg)
 
     def gps_avg_callback(self, request: UInt8, response: Float32MultiArray):
         """A service callback function for the GPS averaging"""
