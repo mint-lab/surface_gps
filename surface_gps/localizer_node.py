@@ -31,9 +31,9 @@ class Localizer_node(Node):
         )
 
         self.pub_tf = self.create_publisher(TFMessage, "/tf", 10)
-        self.pub_robot_pose = self.create_publisher(PoseStamped, "/robot/pose", 10)
-        self.pub_robot_path = self.create_publisher(Path, "/robot/path", 10)
-        self.pub_latlon = self.create_publisher(NavSatFix, "/robot/latlon", 10)
+        self.pub_robot_pose = self.create_publisher(PoseStamped, "/surface_gps/pose", 10)
+        self.pub_robot_path = self.create_publisher(Path, "/surface_gps/path", 10)
+        self.pub_latlon = self.create_publisher(NavSatFix, "/surface_gps/latlon", 10)
 
         self.pose_list = []
         self.path_msg = Path()
