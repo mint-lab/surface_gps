@@ -7,7 +7,7 @@ from filterpy.stats import plot_covariance
 TODO:
 * test the EKFLocalizer class
 * model measurement considering the lever-arm effect
-* Consider how to model the covariance matrices to account for angles
+* consider how to model the covariance matrices to account for angles
 """
 
 
@@ -24,7 +24,7 @@ class EKFLocalizer(ExtendedKalmanFilter):
     ):
         """
         @brief A Constructor
-        @param v_noise_std: The variance of the velocity noise.
+        @param v_noise_var: The variance of the velocity noise.
                             The standard deviation is 0.05m/s accuracy
                             with a 68% confidence interval at 30 m/s for dynamic operation
                             (from u-blox ZED-F9R datasheet)
