@@ -10,6 +10,7 @@ TODO:
 * Consider how to model the covariance matrices to account for angles
 """
 
+
 # TODO: handle exceptions for the case when x or y velocity results in NaN
 class EKFLocalizer(ExtendedKalmanFilter):
     """An Extended Kalman Filter for localization"""
@@ -57,31 +58,33 @@ class EKFLocalizer(ExtendedKalmanFilter):
         # Predict the covariance
         self.F = np.array(
             [
-                [1., 0, 0, self.dt, 0, 0, 0, 0, 0, 0],
-                [0, 1., 0, 0, self.dt, 0, 0, 0, 0, 0],
-                [0, 0, 1., 0, 0, self.dt, 0, 0, 0, 0],
-                [0, 0, 0, 1., 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 1., 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 1., 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 1., 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 1., 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 1., 0],
-                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1.],
+                [1.0, 0, 0, self.dt, 0, 0, 0, 0, 0, 0],
+                [0, 1.0, 0, 0, self.dt, 0, 0, 0, 0, 0],
+                [0, 0, 1.0, 0, 0, self.dt, 0, 0, 0, 0],
+                [0, 0, 0, 1.0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1.0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1.0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1.0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1.0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0],
             ]
         )
         # df/dv, df/dw
-        W = np.array([
-            [self.dt, 0],
-            [self.dt, 0],
-            [self.dt, 0],
-            [1., 0],
-            [1., 0],
-            [1., 0],
-            [0, 0],
-            [0, 0],
-            [0, 0],
-            [0, 0],
-        ])
+        W = np.array(
+            [
+                [self.dt, 0],
+                [self.dt, 0],
+                [self.dt, 0],
+                [1.0, 0],
+                [1.0, 0],
+                [1.0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+                [0, 0],
+            ]
+        )
         self.Q = W @ self.motion_noise @ W.T
         self.P = self.F @ self.P @ self.F.T + self.Q
 
